@@ -50,8 +50,43 @@
             z-index: 20;
             width: 100px;
             height: 50px;
-            background-color: transparent;
+            /* Temporarily make it visible with a semi-transparent background */
+            background-color: rgba(255, 0, 0, 0.3);
+            border: 2px dashed red;
             cursor: pointer;
+        }
+        #clicker-label {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: black;
+            font-size: 12px;
+            text-align: center;
+            font-weight: bold;
+            pointer-events: none;
+        }
+        #position-controls {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            z-index: 30;
+            background-color: white;
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+        #position-controls button {
+            margin: 2px;
+        }
+        /* Hide clicker after 30 seconds */
+        @keyframes fadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
+        .fade-out {
+            animation: fadeOut 5s forwards;
+            animation-delay: 30s;
         }
     </style>
 </head>
@@ -81,23 +116,130 @@
         </div>
     </div>
 
-    <!-- Invisible clickable area over the Pinpoint tab -->
-    <div id="page-switcher"></div>
+    <!-- Temporarily visible clickable area over the Pinpoint tab -->
+    <div id="page-switcher" class="fade-out">
+        <div id="clicker-label">Click here to toggle Pinpoint</div>
+    </div>
+
+    <!-- Position adjustment controls -->
+    <div id="position-controls">
+        <div>
+            <button id="move-up">↑</button>
+            <button id="move-down">↓</button>
+            <button id="move-left">←</button>
+            <button id="move-right">→</button>
+        </div>
+        <div>
+            <button id="wider">Wider</button>
+            <button id="narrower">Narrower</button>
+            <button id="taller">Taller</button>
+            <button id="shorter">Shorter</button>
+        </div>
+        <div>
+            <button id="hide-clicker">Hide Clicker</button>
+            <button id="save-position">Save Position</button>
+        </div>
+        <div id="position-info" style="font-size: 12px; margin-top: 5px;">
+            Position: Left 220px, Top 100px<br>
+            Size: 100px × 50px
+        </div>
+    </div>
 
     <script>
         const floatingBox = document.getElementById('floating-box');
         const closeBoxBtn = document.getElementById('close-box');
         const pageSwitcher = document.getElementById('page-switcher');
+        const positionInfo = document.getElementById('position-info');
+        
+        // Position control elements
+        const moveUp = document.getElementById('move-up');
+        const moveDown = document.getElementById('move-down');
+        const moveLeft = document.getElementById('move-left');
+        const moveRight = document.getElementById('move-right');
+        const wider = document.getElementById('wider');
+        const narrower = document.getElementById('narrower');
+        const taller = document.getElementById('taller');
+        const shorter = document.getElementById('shorter');
+        const hideClicker = document.getElementById('hide-clicker');
+        const savePosition = document.getElementById('save-position');
+        
+        // Current position and size
+        let clickerTop = 100;
+        let clickerLeft = 220;
+        let clickerWidth = 100;
+        let clickerHeight = 50;
         
         // Track the current page
         let currentPage = 'Prospect';
+        
+        // Update clicker position and size
+        function updateClickerPosition() {
+            pageSwitcher.style.top = clickerTop + 'px';
+            pageSwitcher.style.left = clickerLeft + 'px';
+            pageSwitcher.style.width = clickerWidth + 'px';
+            pageSwitcher.style.height = clickerHeight + 'px';
+            positionInfo.innerHTML = `Position: Left ${clickerLeft}px, Top ${clickerTop}px<br>Size: ${clickerWidth}px × ${clickerHeight}px`;
+        }
+        
+        // Position control event listeners
+        moveUp.addEventListener('click', function() { 
+            clickerTop -= 5; 
+            updateClickerPosition(); 
+        });
+        
+        moveDown.addEventListener('click', function() { 
+            clickerTop += 5; 
+            updateClickerPosition(); 
+        });
+        
+        moveLeft.addEventListener('click', function() { 
+            clickerLeft -= 5; 
+            updateClickerPosition(); 
+        });
+        
+        moveRight.addEventListener('click', function() { 
+            clickerLeft += 5; 
+            updateClickerPosition(); 
+        });
+        
+        wider.addEventListener('click', function() { 
+            clickerWidth += 5; 
+            updateClickerPosition(); 
+        });
+        
+        narrower.addEventListener('click', function() { 
+            clickerWidth = Math.max(20, clickerWidth - 5); 
+            updateClickerPosition(); 
+        });
+        
+        taller.addEventListener('click', function() { 
+            clickerHeight += 5; 
+            updateClickerPosition(); 
+        });
+        
+        shorter.addEventListener('click', function() { 
+            clickerHeight = Math.max(20, clickerHeight - 5); 
+            updateClickerPosition(); 
+        });
+        
+        hideClicker.addEventListener('click', function() {
+            // Make the clicker invisible
+            pageSwitcher.style.backgroundColor = 'transparent';
+            pageSwitcher.style.border = 'none';
+            document.getElementById('clicker-label').style.display = 'none';
+        });
+        
+        savePosition.addEventListener('click', function() {
+            const positionCode = `Position the #page-switcher at: top: ${clickerTop}px; left: ${clickerLeft}px; width: ${clickerWidth}px; height: ${clickerHeight}px;`;
+            alert(`Position saved! Copy this information:\n\n${positionCode}`);
+        });
         
         // Close box button
         closeBoxBtn.addEventListener('click', function() {
             floatingBox.style.display = 'none';
         });
         
-        // Page switcher click (positioned over the "Pinpoint" tab)
+        // Page switcher click
         pageSwitcher.addEventListener('click', function() {
             // Toggle between pages
             if (currentPage === 'Prospect') {
@@ -125,6 +267,7 @@
         
         // Initialize
         checkHash();
+        updateClickerPosition();
         
         // Listen for key press to toggle display
         document.addEventListener('keydown', function(e) {
