@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BullTrial</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/powerbi-client/2.19.1/powerbi.min.js"></script>
     <style>
         html, body {
             margin: 0;
@@ -32,7 +33,7 @@
             background: white;
             z-index: 1000;
             box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.3);
-            display: block; /* Make sure it's visible */
+            display: none; /* Hidden by default */
         }
     </style>
 </head>
@@ -47,8 +48,45 @@
         </iframe>
     </div>
 
-    <!-- Chat Overlay (Now Always Visible) -->
+    <!-- Chat Overlay (Initially Hidden) -->
     <iframe id="overlay-iframe" src="https://tofua.github.io/testembed/"></iframe>
+
+    <script>
+        // Initialize Power BI Embed API
+        function initializePowerBI() {
+            let embedContainer = document.getElementById("powerbi-frame");
+            let chatOverlay = document.getElementById("overlay-iframe");
+
+            // Configure Power BI embed settings
+            let report = powerbi.embed(embedContainer, {
+                type: 'report',
+                id: '782913b3-f792-4f84-bc87-d46092f64932',
+                embedUrl: embedContainer.src,
+                accessToken: '', // If needed for security
+                tokenType: powerbi.models.TokenType.Aad,
+                settings: {
+                    navContentPaneEnabled: true
+                }
+            });
+
+            // Listen for page navigation
+            report.on("pageChanged", function(event) {
+                let currentPage = event.detail.newPage.displayName;
+                console.log("Current Page:", currentPage);
+
+                if (currentPage === "Pinpoint") {
+                    chatOverlay.style.display = "block"; // Show chat overlay
+                } else {
+                    chatOverlay.style.display = "none"; // Hide chat overlay
+                }
+            });
+        }
+
+        // Wait for Power BI to load, then initialize tracking
+        window.onload = function() {
+            setTimeout(initializePowerBI, 3000); // Allow Power BI to fully load
+        };
+    </script>
 
 </body>
 </html>
