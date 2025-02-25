@@ -15,12 +15,12 @@
             width: 100%;
             height: 100%;
         }
-        #floating-overlay {
-            position: absolute;
-            top: 50px;
+        #floating-box {
+            position: fixed;
+            bottom: 50px;
             right: 50px;
-            width: 400px;
-            height: 300px;
+            width: 300px;
+            height: 250px;
             z-index: 10;
             background-color: white;
             border: 1px solid #ccc;
@@ -28,46 +28,30 @@
             box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
             display: none;
             overflow: hidden;
-            resize: both;
         }
-        #overlay-header {
-            padding: 8px;
+        #box-header {
+            padding: 5px;
             background-color: #f5f5f5;
             border-bottom: 1px solid #ddd;
-            cursor: move;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            font-size: 12px;
         }
-        #overlay-content {
+        #box-content {
             width: 100%;
-            height: calc(100% - 32px);
+            height: calc(100% - 25px);
             overflow: hidden;
         }
-        #page-indicator {
+        #page-switcher {
             position: fixed;
-            top: 10px;
-            left: 10px;
+            top: 100px;
+            left: 220px;
             z-index: 20;
-            background-color: rgba(255, 255, 255, 0.8);
-            padding: 8px;
-            border-radius: 5px;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-        }
-        #toggle-overlay {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            z-index: 20;
-            padding: 10px 15px;
-            background-color: #0078d4;
-            color: white;
-            border: none;
-            border-radius: 4px;
+            width: 100px;
+            height: 50px;
+            background-color: transparent;
             cursor: pointer;
-        }
-        #toggle-overlay:hover {
-            background-color: #005a9e;
         }
     </style>
 </head>
@@ -82,12 +66,12 @@
         </iframe>
     </div>
     
-    <div id="floating-overlay">
-        <div id="overlay-header">
+    <div id="floating-box">
+        <div id="box-header">
             <span>External Content</span>
-            <button id="close-overlay" style="background: none; border: none; cursor: pointer;">✕</button>
+            <button id="close-box" style="background: none; border: none; cursor: pointer; font-size: 12px;">✕</button>
         </div>
-        <div id="overlay-content">
+        <div id="box-content">
             <iframe 
                 id="overlay-iframe"
                 style="width: 100%; height: 100%; border: none;" 
@@ -97,74 +81,32 @@
         </div>
     </div>
 
-    <div id="page-indicator">
-        <select id="page-selector">
-            <option value="Prospect">Page: Prospect</option>
-            <option value="Pinpoint">Page: Pinpoint</option>
-        </select>
-    </div>
-
-    <button id="toggle-overlay">Toggle External Content</button>
+    <!-- Invisible clickable area over the Pinpoint tab -->
+    <div id="page-switcher"></div>
 
     <script>
-        const floatingOverlay = document.getElementById('floating-overlay');
-        const overlayHeader = document.getElementById('overlay-header');
-        const closeOverlayBtn = document.getElementById('close-overlay');
-        const toggleOverlayBtn = document.getElementById('toggle-overlay');
-        const pageSelector = document.getElementById('page-selector');
+        const floatingBox = document.getElementById('floating-box');
+        const closeBoxBtn = document.getElementById('close-box');
+        const pageSwitcher = document.getElementById('page-switcher');
         
-        // Initial page is Prospect
+        // Track the current page
         let currentPage = 'Prospect';
-        let showOverlay = false;
         
-        // Function to update UI based on current page
-        function updatePageDisplay() {
-            if (currentPage === 'Pinpoint' && showOverlay) {
-                floatingOverlay.style.display = 'block';
+        // Close box button
+        closeBoxBtn.addEventListener('click', function() {
+            floatingBox.style.display = 'none';
+        });
+        
+        // Page switcher click (positioned over the "Pinpoint" tab)
+        pageSwitcher.addEventListener('click', function() {
+            // Toggle between pages
+            if (currentPage === 'Prospect') {
+                currentPage = 'Pinpoint';
+                floatingBox.style.display = 'block';
             } else {
-                floatingOverlay.style.display = 'none';
+                currentPage = 'Prospect';
+                floatingBox.style.display = 'none';
             }
-        }
-        
-        // Toggle overlay button
-        toggleOverlayBtn.addEventListener('click', function() {
-            showOverlay = !showOverlay;
-            updatePageDisplay();
-        });
-        
-        // Close overlay button
-        closeOverlayBtn.addEventListener('click', function() {
-            showOverlay = false;
-            updatePageDisplay();
-        });
-        
-        // Page selector change
-        pageSelector.addEventListener('change', function() {
-            currentPage = this.value;
-            updatePageDisplay();
-        });
-        
-        // Make the floating overlay draggable
-        let offsetX, offsetY, isDragging = false;
-        
-        overlayHeader.addEventListener('mousedown', function(e) {
-            isDragging = true;
-            offsetX = e.clientX - floatingOverlay.getBoundingClientRect().left;
-            offsetY = e.clientY - floatingOverlay.getBoundingClientRect().top;
-        });
-        
-        document.addEventListener('mousemove', function(e) {
-            if (!isDragging) return;
-            
-            const x = e.clientX - offsetX;
-            const y = e.clientY - offsetY;
-            
-            floatingOverlay.style.left = x + 'px';
-            floatingOverlay.style.top = y + 'px';
-        });
-        
-        document.addEventListener('mouseup', function() {
-            isDragging = false;
         });
         
         // URL hash navigation
@@ -172,19 +114,31 @@
             const hash = window.location.hash.slice(1);
             if (hash === 'pinpoint') {
                 currentPage = 'Pinpoint';
-                pageSelector.value = 'Pinpoint';
+                floatingBox.style.display = 'block';
             } else if (hash === 'prospect') {
                 currentPage = 'Prospect';
-                pageSelector.value = 'Prospect';
+                floatingBox.style.display = 'none';
             }
-            updatePageDisplay();
         }
         
         window.addEventListener('hashchange', checkHash);
         
         // Initialize
         checkHash();
-        updatePageDisplay();
+        
+        // Listen for key press to toggle display
+        document.addEventListener('keydown', function(e) {
+            // Press 'p' to toggle Pinpoint/Prospect
+            if (e.key === 'p' || e.key === 'P') {
+                if (currentPage === 'Prospect') {
+                    currentPage = 'Pinpoint';
+                    floatingBox.style.display = 'block';
+                } else {
+                    currentPage = 'Prospect';
+                    floatingBox.style.display = 'none';
+                }
+            }
+        });
     </script>
 </body>
 </html>
