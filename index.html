@@ -2,286 +2,68 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BullTrial</title>
+    <title>BullTrial - Page Detector</title>
     <style>
         html, body {
             margin: 0;
             padding: 0;
-            height: 100%;
-            position: relative;
-        }
-        .iframe-container {
-            width: 100%;
+            overflow: hidden;
             height: 100%;
         }
-        #floating-box {
-            position: fixed;
-            bottom: 50px;
-            right: 50px;
-            width: 300px;
-            height: 250px;
-            z-index: 10;
-            background-color: white;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
-            display: none;
-            overflow: hidden;
-        }
-        #box-header {
-            padding: 5px;
-            background-color: #f5f5f5;
-            border-bottom: 1px solid #ddd;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-size: 12px;
-        }
-        #box-content {
+        iframe {
             width: 100%;
-            height: calc(100% - 25px);
-            overflow: hidden;
+            height: 100%;
+            border: none;
         }
-        #page-switcher {
+        #page-indicator {
             position: fixed;
-            top: 100px;
-            left: 220px;
-            z-index: 20;
-            width: 100px;
-            height: 50px;
-            /* Temporarily make it visible with a semi-transparent background */
-            background-color: rgba(255, 0, 0, 0.3);
-            border: 2px dashed red;
-            cursor: pointer;
-        }
-        #clicker-label {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            color: black;
-            font-size: 12px;
-            text-align: center;
-            font-weight: bold;
-            pointer-events: none;
-        }
-        #position-controls {
-            position: fixed;
-            top: 10px;
+            bottom: 10px;
             right: 10px;
-            z-index: 30;
-            background-color: white;
-            padding: 10px;
+            background: #007bff;
+            color: white;
+            padding: 10px 15px;
+            font-family: Arial, sans-serif;
             border-radius: 5px;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-        }
-        #position-controls button {
-            margin: 2px;
-        }
-        /* Hide clicker after 30 seconds */
-        @keyframes fadeOut {
-            from { opacity: 1; }
-            to { opacity: 0; }
-        }
-        .fade-out {
-            animation: fadeOut 5s forwards;
-            animation-delay: 30s;
+            z-index: 1000;
         }
     </style>
 </head>
 <body>
-    <div class="iframe-container">
-        <iframe 
-            id="powerbi-iframe"
-            title="Finance Dashboard - Mobile" 
-            style="width: 100%; height: 100%; border: none;" 
-            src="https://app.powerbi.com/reportEmbed?reportId=782913b3-f792-4f84-bc87-d46092f64932&autoAuth=true&ctid=37732b96-4974-4df0-ae3d-3f5bab5f9564" 
-            allowFullScreen="true">
-        </iframe>
-    </div>
-    
-    <div id="floating-box">
-        <div id="box-header">
-            <span>External Content</span>
-            <button id="close-box" style="background: none; border: none; cursor: pointer; font-size: 12px;">✕</button>
-        </div>
-        <div id="box-content">
-            <iframe 
-                id="overlay-iframe"
-                style="width: 100%; height: 100%; border: none;" 
-                src="https://tofua.github.io/testembed/" 
-                allowFullScreen="true">
-            </iframe>
-        </div>
-    </div>
 
-    <!-- Temporarily visible clickable area over the Pinpoint tab -->
-    <div id="page-switcher" class="fade-out">
-        <div id="clicker-label">Click here to toggle Pinpoint</div>
-    </div>
+    <iframe id="powerbi-frame" src="https://app.powerbi.com/reportEmbed?reportId=782913b3-f792-4f84-bc87-d46092f64932&autoAuth=true&ctid=37732b96-4974-4df0-ae3d-3f5bab5f9564"></iframe>
 
-    <!-- Position adjustment controls -->
-    <div id="position-controls">
-        <div>
-            <button id="move-up">↑</button>
-            <button id="move-down">↓</button>
-            <button id="move-left">←</button>
-            <button id="move-right">→</button>
-        </div>
-        <div>
-            <button id="wider">Wider</button>
-            <button id="narrower">Narrower</button>
-            <button id="taller">Taller</button>
-            <button id="shorter">Shorter</button>
-        </div>
-        <div>
-            <button id="hide-clicker">Hide Clicker</button>
-            <button id="save-position">Save Position</button>
-        </div>
-        <div id="position-info" style="font-size: 12px; margin-top: 5px;">
-            Position: Left 220px, Top 100px<br>
-            Size: 100px × 50px
-        </div>
-    </div>
+    <div id="page-indicator">Current Page: Unknown</div>
 
     <script>
-        const floatingBox = document.getElementById('floating-box');
-        const closeBoxBtn = document.getElementById('close-box');
-        const pageSwitcher = document.getElementById('page-switcher');
-        const positionInfo = document.getElementById('position-info');
-        
-        // Position control elements
-        const moveUp = document.getElementById('move-up');
-        const moveDown = document.getElementById('move-down');
-        const moveLeft = document.getElementById('move-left');
-        const moveRight = document.getElementById('move-right');
-        const wider = document.getElementById('wider');
-        const narrower = document.getElementById('narrower');
-        const taller = document.getElementById('taller');
-        const shorter = document.getElementById('shorter');
-        const hideClicker = document.getElementById('hide-clicker');
-        const savePosition = document.getElementById('save-position');
-        
-        // Current position and size
-        let clickerTop = 100;
-        let clickerLeft = 220;
-        let clickerWidth = 100;
-        let clickerHeight = 50;
-        
-        // Track the current page
-        let currentPage = 'Prospect';
-        
-        // Update clicker position and size
-        function updateClickerPosition() {
-            pageSwitcher.style.top = clickerTop + 'px';
-            pageSwitcher.style.left = clickerLeft + 'px';
-            pageSwitcher.style.width = clickerWidth + 'px';
-            pageSwitcher.style.height = clickerHeight + 'px';
-            positionInfo.innerHTML = `Position: Left ${clickerLeft}px, Top ${clickerTop}px<br>Size: ${clickerWidth}px × ${clickerHeight}px`;
-        }
-        
-        // Position control event listeners
-        moveUp.addEventListener('click', function() { 
-            clickerTop -= 5; 
-            updateClickerPosition(); 
-        });
-        
-        moveDown.addEventListener('click', function() { 
-            clickerTop += 5; 
-            updateClickerPosition(); 
-        });
-        
-        moveLeft.addEventListener('click', function() { 
-            clickerLeft -= 5; 
-            updateClickerPosition(); 
-        });
-        
-        moveRight.addEventListener('click', function() { 
-            clickerLeft += 5; 
-            updateClickerPosition(); 
-        });
-        
-        wider.addEventListener('click', function() { 
-            clickerWidth += 5; 
-            updateClickerPosition(); 
-        });
-        
-        narrower.addEventListener('click', function() { 
-            clickerWidth = Math.max(20, clickerWidth - 5); 
-            updateClickerPosition(); 
-        });
-        
-        taller.addEventListener('click', function() { 
-            clickerHeight += 5; 
-            updateClickerPosition(); 
-        });
-        
-        shorter.addEventListener('click', function() { 
-            clickerHeight = Math.max(20, clickerHeight - 5); 
-            updateClickerPosition(); 
-        });
-        
-        hideClicker.addEventListener('click', function() {
-            // Make the clicker invisible
-            pageSwitcher.style.backgroundColor = 'transparent';
-            pageSwitcher.style.border = 'none';
-            document.getElementById('clicker-label').style.display = 'none';
-        });
-        
-        savePosition.addEventListener('click', function() {
-            const positionCode = `Position the #page-switcher at: top: ${clickerTop}px; left: ${clickerLeft}px; width: ${clickerWidth}px; height: ${clickerHeight}px;`;
-            alert(`Position saved! Copy this information:\n\n${positionCode}`);
-        });
-        
-        // Close box button
-        closeBoxBtn.addEventListener('click', function() {
-            floatingBox.style.display = 'none';
-        });
-        
-        // Page switcher click
-        pageSwitcher.addEventListener('click', function() {
-            // Toggle between pages
-            if (currentPage === 'Prospect') {
-                currentPage = 'Pinpoint';
-                floatingBox.style.display = 'block';
-            } else {
-                currentPage = 'Prospect';
-                floatingBox.style.display = 'none';
-            }
-        });
-        
-        // URL hash navigation
-        function checkHash() {
-            const hash = window.location.hash.slice(1);
-            if (hash === 'pinpoint') {
-                currentPage = 'Pinpoint';
-                floatingBox.style.display = 'block';
-            } else if (hash === 'prospect') {
-                currentPage = 'Prospect';
-                floatingBox.style.display = 'none';
-            }
-        }
-        
-        window.addEventListener('hashchange', checkHash);
-        
-        // Initialize
-        checkHash();
-        updateClickerPosition();
-        
-        // Listen for key press to toggle display
-        document.addEventListener('keydown', function(e) {
-            // Press 'p' to toggle Pinpoint/Prospect
-            if (e.key === 'p' || e.key === 'P') {
-                if (currentPage === 'Prospect') {
-                    currentPage = 'Pinpoint';
-                    floatingBox.style.display = 'block';
-                } else {
-                    currentPage = 'Prospect';
-                    floatingBox.style.display = 'none';
+        function detectPage() {
+            let powerBIFrame = document.getElementById("powerbi-frame");
+            let indicator = document.getElementById("page-indicator");
+
+            try {
+                let content = powerBIFrame.contentDocument || powerBIFrame.contentWindow.document;
+
+                // Method 1: Check selected tab by class
+                let pinpointTab = content.querySelector(".themeableElement[title='Pinpoint']");
+                if (pinpointTab && pinpointTab.closest(".selected")) {
+                    indicator.textContent = "Current Page: Pinpoint";
+                    return;
                 }
+
+                let prospectTab = content.querySelector(".themeableElement[title='Prospect']");
+                if (prospectTab && prospectTab.closest(".selected")) {
+                    indicator.textContent = "Current Page: Prospect";
+                    return;
+                }
+
+                // Default fallback
+                indicator.textContent = "Current Page: Unknown (No tab matched)";
+            } catch (error) {
+                indicator.textContent = "Current Page: Cannot access iframe (cross-origin issue)";
             }
-        });
+        }
+
+        setInterval(detectPage, 2000);
     </script>
+
 </body>
 </html>
