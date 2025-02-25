@@ -9,21 +9,68 @@
             margin: 0;
             padding: 0;
             height: 100%;
+            overflow: hidden;
         }
         .iframe-container {
             width: 100%;
             height: 100%;
+            position: relative;
+        }
+        iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+        /* Overlay iframe styles */
+        #overlay-iframe {
+            display: none; /* Hidden by default */
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 400px;
+            height: 600px;
+            border: 2px solid black;
+            background: white;
+            z-index: 1000;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.3);
         }
     </style>
 </head>
 <body>
+
     <div class="iframe-container">
         <iframe 
+            id="powerbi-frame"
             title="Finance Dashboard - Mobile" 
-            style="width: 100%; height: 100%; border: none;" 
             src="https://app.powerbi.com/reportEmbed?reportId=782913b3-f792-4f84-bc87-d46092f64932&autoAuth=true&ctid=37732b96-4974-4df0-ae3d-3f5bab5f9564" 
             allowFullScreen="true">
         </iframe>
     </div>
+
+    <!-- Chat Overlay (Initially Hidden) -->
+    <iframe id="overlay-iframe" src="https://tofua.github.io/testembed/"></iframe>
+
+    <script>
+        function checkPowerBIPage() {
+            let powerBIFrame = document.getElementById("powerbi-frame");
+            let overlayFrame = document.getElementById("overlay-iframe");
+
+            try {
+                let powerBIUrl = powerBIFrame.contentWindow.location.href;
+
+                if (powerBIUrl.includes("Pinpoint")) {
+                    overlayFrame.style.display = "block"; // Show chat overlay
+                } else {
+                    overlayFrame.style.display = "none"; // Hide chat overlay
+                }
+            } catch (error) {
+                console.warn("Cannot access Power BI iframe URL due to cross-origin restrictions.");
+            }
+        }
+
+        // Run every 2 seconds to detect page changes
+        setInterval(checkPowerBIPage, 2000);
+    </script>
+
 </body>
 </html>
