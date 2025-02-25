@@ -52,40 +52,28 @@
     <iframe id="overlay-iframe" src="https://tofua.github.io/testembed/"></iframe>
 
     <script>
-        // Initialize Power BI Embed API
-        function initializePowerBI() {
-            let embedContainer = document.getElementById("powerbi-frame");
-            let chatOverlay = document.getElementById("overlay-iframe");
+        function checkActivePage() {
+            let powerBIFrame = document.getElementById("powerbi-frame");
+            let overlayFrame = document.getElementById("overlay-iframe");
 
-            // Configure Power BI embed settings
-            let report = powerbi.embed(embedContainer, {
-                type: 'report',
-                id: '782913b3-f792-4f84-bc87-d46092f64932',
-                embedUrl: embedContainer.src,
-                accessToken: '', // If needed for security
-                tokenType: powerbi.models.TokenType.Aad,
-                settings: {
-                    navContentPaneEnabled: true
-                }
-            });
+            try {
+                let powerBIContent = powerBIFrame.contentDocument || powerBIFrame.contentWindow.document;
+                let selectedTab = powerBIContent.querySelector(".themeableElement.textLabel.trimmedTextWithEllipsis[title='Pinpoint']");
 
-            // Listen for page navigation
-            report.on("pageChanged", function(event) {
-                let currentPage = event.detail.newPage.displayName;
-                console.log("Current Page:", currentPage);
-
-                if (currentPage === "Pinpoint") {
-                    chatOverlay.style.display = "block"; // Show chat overlay
+                if (selectedTab && selectedTab.closest(".selected")) {
+                    overlayFrame.style.display = "block"; // Show chat overlay when Pinpoint is active
+                    console.log("Pinpoint is active - Showing overlay");
                 } else {
-                    chatOverlay.style.display = "none"; // Hide chat overlay
+                    overlayFrame.style.display = "none"; // Hide chat overlay otherwise
+                    console.log("Pinpoint is NOT active - Hiding overlay");
                 }
-            });
+            } catch (error) {
+                console.warn("Cannot access Power BI iframe due to cross-origin restrictions.");
+            }
         }
 
-        // Wait for Power BI to load, then initialize tracking
-        window.onload = function() {
-            setTimeout(initializePowerBI, 3000); // Allow Power BI to fully load
-        };
+        // Run check every 2 seconds
+        setInterval(checkActivePage, 2000);
     </script>
 
 </body>
