@@ -25,6 +25,16 @@
             background-color: white;
             display: none;
         }
+        #page-controls {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            z-index: 20;
+            background-color: rgba(255, 255, 255, 0.8);
+            padding: 8px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
     </style>
 </head>
 <body>
@@ -47,62 +57,80 @@
         </iframe>
     </div>
 
-    <script>
-        const powerbiIframe = document.getElementById('powerbi-iframe');
-        const overlay = document.getElementById('overlay');
-        let checkInterval;
+    <div id="page-controls">
+        <button id="prospect-btn">Prospect</button>
+        <button id="pinpoint-btn">Pinpoint</button>
+        <span id="current-page">Current: Prospect</span>
+    </div>
 
-        // Function to check which page is selected
-        function checkActivePage() {
-            try {
-                const iframeDocument = powerbiIframe.contentDocument || powerbiIframe.contentWindow.document;
-                
-                // Look for the selected page element
-                const selectedElements = iframeDocument.querySelectorAll('.section.static.selected');
-                
-                if (selectedElements.length > 0) {
-                    // Get the text label of the selected page
-                    const pageElements = selectedElements[0].querySelectorAll('.textLabel');
-                    
-                    if (pageElements.length > 0) {
-                        const pageName = pageElements[0].textContent.trim();
-                        
-                        // Show overlay only when "Pinpoint" page is selected
-                        if (pageName === "Pinpoint") {
-                            overlay.style.display = "block";
-                        } else {
-                            overlay.style.display = "none";
-                        }
-                    }
-                }
-            } catch (e) {
-                // If we can't access the iframe content due to same-origin policy,
-                // we'll use an alternative approach with message events
-                console.log("Could not directly access iframe content:", e);
+    <script>
+        const overlay = document.getElementById('overlay');
+        const prospectBtn = document.getElementById('prospect-btn');
+        const pinpointBtn = document.getElementById('pinpoint-btn');
+        const currentPageSpan = document.getElementById('current-page');
+        const powerbiIframe = document.getElementById('powerbi-iframe');
+        
+        // Initial page is Prospect
+        let currentPage = 'Prospect';
+        
+        // Function to update UI based on current page
+        function updatePageDisplay() {
+            currentPageSpan.textContent = `Current: ${currentPage}`;
+            
+            if (currentPage === 'Pinpoint') {
+                overlay.style.display = 'block';
+            } else {
+                overlay.style.display = 'none';
             }
         }
-
-        // Start checking after the iframe has loaded
-        powerbiIframe.onload = function() {
-            // First attempt - try direct DOM access
-            checkActivePage();
+        
+        // PowerBI page navigation simulation
+        function navigateToPage(pageName) {
+            // Get the PowerBI iframe window
+            const powerbiWindow = powerbiIframe.contentWindow;
             
-            // Set up regular polling as a fallback
-            checkInterval = setInterval(checkActivePage, 1000);
-
-            // Alternative method using messages if available
-            window.addEventListener('message', function(event) {
-                // If PowerBI sends page change events, we could handle them here
-                // This would be the preferred method if available
-                if (event.data && event.data.type === 'pageChanged') {
-                    if (event.data.pageName === "Pinpoint") {
-                        overlay.style.display = "block";
-                    } else {
-                        overlay.style.display = "none";
-                    }
+            try {
+                // Attempt to navigate to the specified page within PowerBI
+                // This is a common PowerBI JavaScript API pattern
+                if (powerbiWindow.powerbi) {
+                    const report = powerbiWindow.powerbi.get(powerbiIframe);
+                    report.page(pageName);
                 }
-            });
-        };
+            } catch (e) {
+                console.log("Could not directly navigate in PowerBI:", e);
+            }
+            
+            // Update our local state
+            currentPage = pageName;
+            updatePageDisplay();
+        }
+        
+        // Button event listeners
+        prospectBtn.addEventListener('click', function() {
+            navigateToPage('Prospect');
+        });
+        
+        pinpointBtn.addEventListener('click', function() {
+            navigateToPage('Pinpoint');
+        });
+
+        // Initialize the UI
+        updatePageDisplay();
+        
+        // Also listen for URL hash changes as an alternative navigation method
+        window.addEventListener('hashchange', function() {
+            const hash = window.location.hash.slice(1);
+            if (hash === 'pinpoint') {
+                navigateToPage('Pinpoint');
+            } else if (hash === 'prospect') {
+                navigateToPage('Prospect');
+            }
+        });
+        
+        // Check initial hash
+        if (window.location.hash.slice(1) === 'pinpoint') {
+            navigateToPage('Pinpoint');
+        }
     </script>
 </body>
 </html>
