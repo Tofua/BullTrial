@@ -1,69 +1,46 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>BullTrial - Page Detector</title>
-    <style>
-        html, body {
-            margin: 0;
-            padding: 0;
-            overflow: hidden;
-            height: 100%;
-        }
-        iframe {
-            width: 100%;
-            height: 100%;
-            border: none;
-        }
-        #page-indicator {
-            position: fixed;
-            bottom: 10px;
-            right: 10px;
-            background: #007bff;
-            color: white;
-            padding: 10px 15px;
-            font-family: Arial, sans-serif;
-            border-radius: 5px;
-            z-index: 1000;
-        }
-    </style>
+    <title>Power BI Embed</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/powerbi-client/2.20.0/powerbi.min.js"></script>
 </head>
 <body>
-
-    <iframe id="powerbi-frame" src="https://app.powerbi.com/reportEmbed?reportId=782913b3-f792-4f84-bc87-d46092f64932&autoAuth=true&ctid=37732b96-4974-4df0-ae3d-3f5bab5f9564"></iframe>
-
-    <div id="page-indicator">Current Page: Unknown</div>
+    <h2>Power BI Embedded Report</h2>
+    <button onclick="refreshPowerBI()">Refresh Report</button>
+    <div id="embedContainer" style="width: 1140px; height: 541.25px;"></div>
 
     <script>
-        function detectPage() {
-            let powerBIFrame = document.getElementById("powerbi-frame");
-            let indicator = document.getElementById("page-indicator");
+        async function getEmbedToken() {
+            let response = await fetch("https://https://powerbi-auth-api-a7d4aydgc2d4hrhu.uksouth-01.azurewebsites.net/get-token");
+            let data = await response.json();
+            return data.accessToken;
+        }
 
-            try {
-                let content = powerBIFrame.contentDocument || powerBIFrame.contentWindow.document;
+        async function embedReport() {
+            let accessToken = await getEmbedToken();
 
-                // Method 1: Check selected tab by class
-                let pinpointTab = content.querySelector(".themeableElement[title='Pinpoint']");
-                if (pinpointTab && pinpointTab.closest(".selected")) {
-                    indicator.textContent = "Current Page: Pinpoint";
-                    return;
-                }
+            let embedConfig = {
+                type: "report",
+                accessToken: accessToken,
+                embedUrl: "https://app.powerbi.com/reportEmbed?reportId=782913b3-f792-4f84-bc87-d46092f64932",
+                tokenType: 0
+            };
 
-                let prospectTab = content.querySelector(".themeableElement[title='Prospect']");
-                if (prospectTab && prospectTab.closest(".selected")) {
-                    indicator.textContent = "Current Page: Prospect";
-                    return;
-                }
+            let reportContainer = document.getElementById("embedContainer");
+            let powerbiService = new window.powerbi.service.Service(window.powerbi.factories.default);
+            let report = powerbiService.embed(reportContainer, embedConfig);
+        }
 
-                // Default fallback
-                indicator.textContent = "Current Page: Unknown (No tab matched)";
-            } catch (error) {
-                indicator.textContent = "Current Page: Cannot access iframe (cross-origin issue)";
+        function refreshPowerBI() {
+            let report = powerbi.get(document.getElementById("embedContainer"));
+            if (report) {
+                report.refresh()
+                    .then(() => console.log("Report refreshed"))
+                    .catch(error => console.error("Error refreshing report:", error));
             }
         }
 
-        setInterval(detectPage, 2000);
+        embedReport();
     </script>
-
 </body>
 </html>
