@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>Power BI Embed</title>
+    <title>Power BI Embed Test</title>
     <script src="https://cdn.jsdelivr.net/npm/powerbi-client@2.20.0/dist/powerbi.min.js"></script>
 </head>
 <body>
@@ -11,13 +11,24 @@
 
     <script>
         async function getEmbedToken() {
-            let response = await fetch("https://powerbi-auth-api-a7d4aydgc2d4hrhu.uksouth-01.azurewebsites.net/get-token");
-            let data = await response.json();
-            return data.accessToken;
+            try {
+                console.log("Fetching Power BI access token...");
+                let response = await fetch("https://powerbi-auth-api-a7d4aydgc2d4hrhu.uksouth-01.azurewebsites.net/get-token");
+                let data = await response.json();
+                console.log("Access token received:", data);
+                return data.accessToken;
+            } catch (error) {
+                console.error("Error fetching embed token:", error);
+            }
         }
 
         async function embedReport() {
             let accessToken = await getEmbedToken();
+            
+            if (!accessToken) {
+                console.error("Access token is missing. Cannot embed report.");
+                return;
+            }
 
             let embedConfig = {
                 type: "report",
@@ -27,8 +38,19 @@
             };
 
             let reportContainer = document.getElementById("embedContainer");
+
+            console.log("Embedding report with config:", embedConfig);
+
             let powerbiService = new window.powerbi.service.Service(window.powerbi.factories.default);
             let report = powerbiService.embed(reportContainer, embedConfig);
+
+            report.on("loaded", () => {
+                console.log("Power BI report loaded successfully.");
+            });
+
+            report.on("error", (event) => {
+                console.error("Power BI report error:", event.detail);
+            });
         }
 
         function refreshPowerBI() {
@@ -37,6 +59,8 @@
                 report.refresh()
                     .then(() => console.log("Report refreshed"))
                     .catch(error => console.error("Error refreshing report:", error));
+            } else {
+                console.error("No report instance found to refresh.");
             }
         }
 
