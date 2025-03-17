@@ -1,107 +1,82 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <title>Power BI Embedded Report</title>
-    <script src="https://cdn.jsdelivr.net/npm/powerbi-client@2.20.0/dist/powerbi.min.js"></script>
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script> <!-- Ensure jQuery is available -->
+  <meta charset="UTF-8">
+  <title>Power BI Report Embed</title>
+  <!-- Include the Power BI client library -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/powerbi-client/2.19.1/powerbi.min.js"></script>
+  <style>
+    #embedContainer {
+      width: 100%;
+      height: 600px;
+    }
+  </style>
 </head>
 <body>
-    <h2>Power BI Embedded Report</h2>
-    <button onclick="refreshPowerBI()">Refresh Report</button>
-    <div id="embedContainer" style="width: 1140px; height: 541.25px;"></div>
+  <div id="embedContainer"></div>
 
-    <script>
-        let loadedResolve, reportLoaded = new Promise((res, rej) => { loadedResolve = res; });
-        let renderedResolve, reportRendered = new Promise((res, rej) => { renderedResolve = res; });
+  <script>
+    document.addEventListener('DOMContentLoaded', async function() {
+      // Fetch the token from your API endpoint
+      const tokenUrl = "https://powerbi-auth-api-a7d4aydgc2d4hrhu.uksouth-01.azurewebsites.net/get-token";
 
-        // Get Power BI models
-        let models = window['powerbi-client'].models;
+      try {
+        const response = await fetch(tokenUrl);
+        const data = await response.json();
+        if (!data.token) {
+          console.error("No token found in response.");
+          return;
+        }
+        const accessToken = data.token;
 
-        // Function to fetch an access token from your Azure backend
-        async function getEmbedToken() {
-            try {
-                console.log("Fetching Power BI access token...");
-                let response = await fetch("https://powerbi-auth-api-a7d4aydgc2d4hrhu.uksouth-01.azurewebsites.net/get-token");
-                let data = await response.json();
-                console.log("Access token received:", data);
-                return data.accessToken;
-            } catch (error) {
-                console.error("Error fetching embed token:", error);
+        // Define embed configuration
+        const config = {
+          type: 'report',
+          tokenType: window['powerbi-client'].models.TokenType.Embed,
+          accessToken: accessToken,
+          embedUrl: "https://app.powerbi.com/reportEmbed?reportId=782913b3-f792-4f84-bc87-d46092f64932&autoAuth=true&ctid=37732b96-4974-4df0-ae3d-3f5bab5f9564",
+          id: "782913b3-f792-4f84-bc87-d46092f64932",
+          permissions: window['powerbi-client'].models.Permissions.All,
+          settings: {
+            panes: {
+              filters: { visible: true },
+              pageNavigation: { visible: true }
+            },
+            bars: {
+              statusBar: { visible: true }
             }
+          }
+        };
+
+        // Get container element (using vanilla JS)
+        const embedContainer = document.getElementById('embedContainer');
+        if (!embedContainer) {
+          console.error("Embed container not found.");
+          return;
         }
 
-        // Function to embed the Power BI report
-        async function embedPowerBIReport() {
-            let accessToken = await getEmbedToken();
-            
-            if (!accessToken) {
-                console.error("Access token is missing. Cannot embed report.");
-                return;
-            }
+        // Embed the report
+        const report = window['powerbi-client'].embed(embedContainer, config);
 
-            // Power BI report configuration
-            let config = {
-                type: 'report',
-                tokenType: models.TokenType.Aad, // Using Azure AD authentication
-                accessToken: accessToken,
-                embedUrl: "https://app.powerbi.com/reportEmbed?reportId=782913b3-f792-4f84-bc87-d46092f64932",
-                id: "782913b3-f792-4f84-bc87-d46092f64932",
-                permissions: models.Permissions.All,
-                settings: {
-                    panes: {
-                        filters: { visible: true },
-                        pageNavigation: { visible: true }
-                    },
-                    bars: {
-                        statusBar: { visible: true }
-                    }
-                }
-            };
+        // Set up event listeners
+        report.off("loaded");
+        report.on("loaded", function() {
+          console.log("Report loaded.");
+        });
 
-            // Get a reference to the embedded report container
-            let embedContainer = document.getElementById("embedContainer");
+        report.off("error");
+        report.on("error", function(event) {
+          console.error("Error:", event.detail);
+        });
 
-            // Embed the report
-            let powerbiService = new window.powerbi.service.Service(window.powerbi.factories.default);
-            let report = powerbiService.embed(embedContainer, config);
-
-            // Handle events
-            report.off("loaded");
-            report.on("loaded", function () {
-                loadedResolve();
-                console.log("Power BI report loaded.");
-                report.off("loaded");
-            });
-
-            report.off("error");
-            report.on("error", function (event) {
-                console.error("Power BI error:", event.detail);
-            });
-
-            report.off("rendered");
-            report.on("rendered", function () {
-                renderedResolve();
-                console.log("Power BI report rendered.");
-                report.off("rendered");
-            });
-
-            // Store report instance for later use
-            window.powerBIReport = report;
-        }
-
-        // Function to refresh the Power BI report
-        function refreshPowerBI() {
-            if (window.powerBIReport) {
-                window.powerBIReport.refresh()
-                    .then(() => console.log("Report refreshed successfully."))
-                    .catch(error => console.error("Error refreshing report:", error));
-            } else {
-                console.error("No Power BI report instance found.");
-            }
-        }
-
-        // Start the embedding process
-        embedPowerBIReport();
-    </script>
+        report.off("rendered");
+        report.on("rendered", function() {
+          console.log("Report rendered.");
+        });
+      } catch (error) {
+        console.error("Error fetching token or embedding report:", error);
+      }
+    });
+  </script>
 </body>
 </html>
