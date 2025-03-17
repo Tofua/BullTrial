@@ -29,15 +29,24 @@
         }
         
         const accessToken = data.accessToken;
-        // Configure the embed settings. Use models.TokenType.Aad for embed for your organization.
+        
+        // Retrieve the models from the library.
+        // This is where we get properties like TokenType and Permissions.
+        let models = window['powerbi-client'].models;
+        if (!models) {
+          console.error("Power BI models not found.");
+          return;
+        }
+        
+        // Configure the embed settings.
         const embedConfiguration = {
           type: 'report',
-          tokenType: powerbi.models.TokenType.Aad,
+          tokenType: models.TokenType.Aad,  // Using AAD token type for embed-for-your-organization.
           accessToken: accessToken,
-          // Use the base URL without extra query parameters.
+          // Use the base embed URL.
           embedUrl: "https://app.powerbi.com/reportEmbed",
           id: "782913b3-f792-4f84-bc87-d46092f64932",
-          permissions: powerbi.models.Permissions.All,
+          permissions: models.Permissions.All,
           settings: {
             panes: {
               filters: { visible: true },
@@ -49,11 +58,14 @@
           }
         };
 
+        // Get the container element.
         const embedContainer = document.getElementById('embedContainer');
         if (!embedContainer) {
           console.error("Embed container not found.");
           return;
         }
+        
+        // Embed the report using the global powerbi object.
         const report = powerbi.embed(embedContainer, embedConfiguration);
 
         report.on("loaded", function() {
