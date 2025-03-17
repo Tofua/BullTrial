@@ -54,7 +54,7 @@
           console.error("Embed container not found.");
           return;
         }
-        const report = window['powerbi-client'].embed(embedContainer, embedConfiguration);
+        const report = powerbi.embed(embedContainer, embedConfiguration);
 
         report.on("loaded", function() {
           console.log("Report loaded.");
