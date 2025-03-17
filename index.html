@@ -11,7 +11,7 @@
 
     <script>
         async function getEmbedToken() {
-            let response = await fetch("https://https://powerbi-auth-api-a7d4aydgc2d4hrhu.uksouth-01.azurewebsites.net/get-token");
+            let response = await fetch("https://powerbi-auth-api-a7d4aydgc2d4hrhu.uksouth-01.azurewebsites.net/get-token");
             let data = await response.json();
             return data.accessToken;
         }
