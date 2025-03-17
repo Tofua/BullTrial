@@ -5,42 +5,60 @@
   <title>Power BI Report Embed</title>
   <!-- Include the Power BI client library -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/powerbi-client/2.19.1/powerbi.min.js"></script>
+  <style>
+    /* Ensure the container has visible dimensions */
+    #reportContainer {
+      width: 100%;
+      height: 600px;
+    }
+  </style>
 </head>
 <body>
   <!-- Report container -->
-  <div id="reportContainer" style="height:600px;"></div>
+  <div id="reportContainer"></div>
 
   <script>
-    // URL of your token service
-    const tokenUrl = "https://powerbi-auth-api-a7d4aydgc2d4hrhu.uksouth-01.azurewebsites.net/get-token";
+    document.addEventListener('DOMContentLoaded', function() {
+      const tokenUrl = "https://powerbi-auth-api-a7d4aydgc2d4hrhu.uksouth-01.azurewebsites.net/get-token";
 
-    // Define the embed configuration without the token yet
-    let embedConfiguration = {
-      type: 'report',
-      tokenType: window['powerbi-client'].models.TokenType.Embed,
-      accessToken: "",  // Will be populated after fetching token
-      embedUrl: "https://app.powerbi.com/reportEmbed?reportId=782913b3-f792-4f84-bc87-d46092f64932&autoAuth=true&ctid=37732b96-4974-4df0-ae3d-3f5bab5f9564",
-      id: "782913b3-f792-4f84-bc87-d46092f64932",
-      settings: {
-        filterPaneEnabled: false,
-        navContentPaneEnabled: false
-      }
-    };
+      // Initial embed configuration without the token
+      let embedConfiguration = {
+        type: 'report',
+        tokenType: window['powerbi-client'].models.TokenType.Embed,
+        accessToken: "",  // To be populated with the token from your API
+        embedUrl: "https://app.powerbi.com/reportEmbed?reportId=782913b3-f792-4f84-bc87-d46092f64932&autoAuth=true&ctid=37732b96-4974-4df0-ae3d-3f5bab5f9564",
+        id: "782913b3-f792-4f84-bc87-d46092f64932",
+        settings: {
+          filterPaneEnabled: false,
+          navContentPaneEnabled: false
+        }
+      };
 
-    // Fetch the embed token from your token service
-    fetch(tokenUrl)
-      .then(response => response.json())
-      .then(data => {
-        // Assuming your token service returns a JSON with a "token" property
-        embedConfiguration.accessToken = data.token;
-        // Get the container element
-        const reportContainer = document.getElementById('reportContainer');
-        // Embed the report into the container
-        const report = window['powerbi-client'].embed(reportContainer, embedConfiguration);
-      })
-      .catch(error => {
-        console.error("Error fetching the embed token:", error);
-      });
+      // Debug: log initial configuration
+      console.log("Initial embed configuration:", embedConfiguration);
+
+      // Fetch the embed token from your token service
+      fetch(tokenUrl)
+        .then(response => response.json())
+        .then(data => {
+          console.log("Token API response:", data);
+          if (!data.token) {
+            console.error("No token found in response.");
+            return;
+          }
+          embedConfiguration.accessToken = data.token;
+
+          // Get the report container element
+          const reportContainer = document.getElementById('reportContainer');
+
+          // Embed the report into the container
+          const report = window['powerbi-client'].embed(reportContainer, embedConfiguration);
+          console.log("Report embedded:", report);
+        })
+        .catch(error => {
+          console.error("Error fetching the embed token:", error);
+        });
+    });
   </script>
 </body>
 </html>
