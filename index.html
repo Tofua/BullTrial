@@ -3,19 +3,20 @@
 <head>
   <meta charset="UTF-8">
   <title>Power BI Report Embed</title>
-  <!-- Include the Power BI client library -->
+  <!-- Include the Power BI JavaScript client library -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/powerbi-client/2.19.1/powerbi.min.js"></script>
   <style>
-    #embedContainer {
+    #reportContainer {
       width: 100%;
       height: 600px;
     }
   </style>
 </head>
 <body>
-  <div id="embedContainer"></div>
+  <div id="reportContainer"></div>
   <script>
-    document.addEventListener('DOMContentLoaded', async function() {
+    document.addEventListener("DOMContentLoaded", async function () {
+      // Endpoint that returns an AAD token for the report.
       const tokenUrl = "https://powerbi-auth-api-a7d4aydgc2d4hrhu.uksouth-01.azurewebsites.net/get-token";
       
       try {
@@ -30,22 +31,20 @@
         
         const accessToken = data.accessToken;
         
-        // Retrieve the models from the library.
-        // This is where we get properties like TokenType and Permissions.
+        // Get models from the Power BI client library.
         let models = window['powerbi-client'].models;
         if (!models) {
           console.error("Power BI models not found.");
           return;
         }
         
-        // Configure the embed settings.
+        // Configure the embed settings as per "Embed for your organization" guidelines.
         const embedConfiguration = {
-          type: 'report',
-          tokenType: models.TokenType.Aad,  // Using AAD token type for embed-for-your-organization.
+          type: "report",
+          id: "782913b3-f792-4f84-bc87-d46092f64932", // Replace with your report ID
+          embedUrl: "https://app.powerbi.com/reportEmbed", // Base URL for AAD-based embedding
+          tokenType: models.TokenType.Aad, // Use AAD token for embed-for-your-organization
           accessToken: accessToken,
-          // Use the base embed URL.
-          embedUrl: "https://app.powerbi.com/reportEmbed",
-          id: "782913b3-f792-4f84-bc87-d46092f64932",
           permissions: models.Permissions.All,
           settings: {
             panes: {
@@ -57,26 +56,25 @@
             }
           }
         };
-
-        // Get the container element.
-        const embedContainer = document.getElementById('embedContainer');
-        if (!embedContainer) {
-          console.error("Embed container not found.");
+        
+        // Get the container element where the report will be embedded.
+        const reportContainer = document.getElementById("reportContainer");
+        if (!reportContainer) {
+          console.error("Report container not found.");
           return;
         }
         
         // Embed the report using the global powerbi object.
-        const report = powerbi.embed(embedContainer, embedConfiguration);
-
-        report.on("loaded", function() {
+        let report = powerbi.embed(reportContainer, embedConfiguration);
+        
+        // Optionally, add event listeners for debugging.
+        report.on("loaded", function () {
           console.log("Report loaded.");
         });
-
-        report.on("rendered", function() {
+        report.on("rendered", function () {
           console.log("Report rendered.");
         });
-
-        report.on("error", function(event) {
+        report.on("error", function (event) {
           console.error("Report error:", event.detail);
         });
       } catch (error) {
