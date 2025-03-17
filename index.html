@@ -14,25 +14,26 @@
 </head>
 <body>
   <div id="embedContainer"></div>
-
   <script>
     document.addEventListener('DOMContentLoaded', async function() {
-      // Fetch the token from your API endpoint
       const tokenUrl = "https://powerbi-auth-api-a7d4aydgc2d4hrhu.uksouth-01.azurewebsites.net/get-token";
-
+      
       try {
         const response = await fetch(tokenUrl);
         const data = await response.json();
-        if (!data.token) {
-          console.error("No token found in response.");
+        console.log("Token API response:", data);
+        
+        if (!data.accessToken) {
+          console.error("No access token found in response.");
           return;
         }
-        const accessToken = data.token;
-
-        // Define embed configuration
-        const config = {
+        
+        const accessToken = data.accessToken;
+        // Configure the embed settings. Adjust tokenType if necessary:
+        const embedConfiguration = {
           type: 'report',
-          tokenType: window['powerbi-client'].models.TokenType.Embed,
+          // If you're embedding using your organization's credentials, set tokenType to models.TokenType.Aad.
+          tokenType: window['powerbi-client'].models.TokenType.Aad,
           accessToken: accessToken,
           embedUrl: "https://app.powerbi.com/reportEmbed?reportId=782913b3-f792-4f84-bc87-d46092f64932&autoAuth=true&ctid=37732b96-4974-4df0-ae3d-3f5bab5f9564",
           id: "782913b3-f792-4f84-bc87-d46092f64932",
@@ -48,30 +49,23 @@
           }
         };
 
-        // Get container element (using vanilla JS)
         const embedContainer = document.getElementById('embedContainer');
         if (!embedContainer) {
           console.error("Embed container not found.");
           return;
         }
+        const report = window['powerbi-client'].embed(embedContainer, embedConfiguration);
 
-        // Embed the report
-        const report = window['powerbi-client'].embed(embedContainer, config);
-
-        // Set up event listeners
-        report.off("loaded");
         report.on("loaded", function() {
           console.log("Report loaded.");
         });
 
-        report.off("error");
-        report.on("error", function(event) {
-          console.error("Error:", event.detail);
-        });
-
-        report.off("rendered");
         report.on("rendered", function() {
           console.log("Report rendered.");
+        });
+
+        report.on("error", function(event) {
+          console.error("Report error:", event.detail);
         });
       } catch (error) {
         console.error("Error fetching token or embedding report:", error);
