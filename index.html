@@ -1,70 +1,46 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <title>Power BI Embed Test</title>
-    <script src="https://cdn.jsdelivr.net/npm/powerbi-client@2.20.0/dist/powerbi.min.js"></script>
+  <meta charset="UTF-8">
+  <title>Power BI Report Embed</title>
+  <!-- Include the Power BI client library -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/powerbi-client/2.19.1/powerbi.min.js"></script>
 </head>
 <body>
-    <h2>Power BI Embedded Report</h2>
-    <button onclick="refreshPowerBI()">Refresh Report</button>
-    <div id="embedContainer" style="width: 1140px; height: 541.25px;"></div>
+  <!-- Report container -->
+  <div id="reportContainer" style="height:600px;"></div>
 
-    <script>
-        async function getEmbedToken() {
-            try {
-                console.log("Fetching Power BI access token...");
-                let response = await fetch("https://powerbi-auth-api-a7d4aydgc2d4hrhu.uksouth-01.azurewebsites.net/get-token");
-                let data = await response.json();
-                console.log("Access token received:", data);
-                return data.accessToken;
-            } catch (error) {
-                console.error("Error fetching embed token:", error);
-            }
-        }
+  <script>
+    // URL of your token service
+    const tokenUrl = "https://powerbi-auth-api-a7d4aydgc2d4hrhu.uksouth-01.azurewebsites.net/get-token";
 
-        async function embedReport() {
-            let accessToken = await getEmbedToken();
-            
-            if (!accessToken) {
-                console.error("Access token is missing. Cannot embed report.");
-                return;
-            }
+    // Define the embed configuration without the token yet
+    let embedConfiguration = {
+      type: 'report',
+      tokenType: window['powerbi-client'].models.TokenType.Embed,
+      accessToken: "",  // Will be populated after fetching token
+      embedUrl: "https://app.powerbi.com/reportEmbed?reportId=782913b3-f792-4f84-bc87-d46092f64932&autoAuth=true&ctid=37732b96-4974-4df0-ae3d-3f5bab5f9564",
+      id: "782913b3-f792-4f84-bc87-d46092f64932",
+      settings: {
+        filterPaneEnabled: false,
+        navContentPaneEnabled: false
+      }
+    };
 
-            let embedConfig = {
-                type: "report",
-                accessToken: accessToken,
-                embedUrl: "https://app.powerbi.com/reportEmbed?reportId=782913b3-f792-4f84-bc87-d46092f64932",
-                tokenType: 0
-            };
-
-            let reportContainer = document.getElementById("embedContainer");
-
-            console.log("Embedding report with config:", embedConfig);
-
-            let powerbiService = new window.powerbi.service.Service(window.powerbi.factories.default);
-            let report = powerbiService.embed(reportContainer, embedConfig);
-
-            report.on("loaded", () => {
-                console.log("Power BI report loaded successfully.");
-            });
-
-            report.on("error", (event) => {
-                console.error("Power BI report error:", event.detail);
-            });
-        }
-
-        function refreshPowerBI() {
-            let report = powerbi.get(document.getElementById("embedContainer"));
-            if (report) {
-                report.refresh()
-                    .then(() => console.log("Report refreshed"))
-                    .catch(error => console.error("Error refreshing report:", error));
-            } else {
-                console.error("No report instance found to refresh.");
-            }
-        }
-
-        embedReport();
-    </script>
+    // Fetch the embed token from your token service
+    fetch(tokenUrl)
+      .then(response => response.json())
+      .then(data => {
+        // Assuming your token service returns a JSON with a "token" property
+        embedConfiguration.accessToken = data.token;
+        // Get the container element
+        const reportContainer = document.getElementById('reportContainer');
+        // Embed the report into the container
+        const report = window['powerbi-client'].embed(reportContainer, embedConfiguration);
+      })
+      .catch(error => {
+        console.error("Error fetching the embed token:", error);
+      });
+  </script>
 </body>
 </html>
