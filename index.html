@@ -29,15 +29,15 @@
         }
         
         const accessToken = data.accessToken;
-        // Configure the embed settings. Adjust tokenType if necessary:
+        // Configure the embed settings. Use models.TokenType.Aad for embed for your organization.
         const embedConfiguration = {
           type: 'report',
-          // If you're embedding using your organization's credentials, set tokenType to models.TokenType.Aad.
-          tokenType: window['powerbi-client'].models.TokenType.Aad,
+          tokenType: powerbi.models.TokenType.Aad,
           accessToken: accessToken,
-          embedUrl: "https://app.powerbi.com/reportEmbed?reportId=782913b3-f792-4f84-bc87-d46092f64932&autoAuth=true&ctid=37732b96-4974-4df0-ae3d-3f5bab5f9564",
+          // Use the base URL without extra query parameters.
+          embedUrl: "https://app.powerbi.com/reportEmbed",
           id: "782913b3-f792-4f84-bc87-d46092f64932",
-          permissions: window['powerbi-client'].models.Permissions.All,
+          permissions: powerbi.models.Permissions.All,
           settings: {
             panes: {
               filters: { visible: true },
