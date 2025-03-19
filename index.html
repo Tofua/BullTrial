@@ -3,34 +3,30 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Power BI Report</title>
+    <title>Power BI Embed Test</title>
     <style>
-        /* Ensure the iframe takes up the full page */
-        #powerbiContainer {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100vw;
+        body {
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
             height: 100vh;
-            overflow: hidden;
+            background-color: #f4f4f4;
         }
-
-        #powerbiFrame {
-            width: 100%;
-            height: 100%;
+        iframe {
+            width: 1140px;
+            height: 541px;
             border: none;
         }
     </style>
 </head>
 <body>
 
-    <!-- Power BI Report Container -->
-    <div id="powerbiContainer">
-        <iframe id="powerbiFrame"
-            src="https://app.powerbi.com/groups/me/reports/782913b3-f792-4f84-bc87-d46092f64932/a0f79580a41a2044790e?experience=power-bi"
-            frameborder="0">
-        </iframe>
-    </div>
+    <iframe title="BullAlpha Trial (2) (3)" 
+        width="1140" height="541.25" 
+        src="https://app.powerbi.com/reportEmbed?reportId=782913b3-f792-4f84-bc87-d46092f64932&autoAuth=true&ctid=37732b96-4974-4df0-ae3d-3f5bab5f9564" 
+        frameborder="0" allowFullScreen="true">
+    </iframe>
 
 </body>
 </html>
