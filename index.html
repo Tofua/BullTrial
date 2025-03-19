@@ -1,248 +1,36 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Power BI Report Embed</title>
-  <!-- Include the Power BI JavaScript client library -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/powerbi-client/2.19.1/powerbi.min.js"></script>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 0;
-      padding: 20px;
-    }
-    #reportContainer {
-      width: 100%;
-      height: 600px;
-      border: 1px solid #ccc;
-    }
-    .debug-panel {
-      margin-top: 20px;
-      padding: 15px;
-      background-color: #f8f9fa;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-    }
-    .debug-panel h3 {
-      margin-top: 0;
-    }
-    .debug-panel pre {
-      background-color: #f1f1f1;
-      padding: 10px;
-      overflow: auto;
-      max-height: 200px;
-    }
-    .error-message {
-      color: #721c24;
-      background-color: #f8d7da;
-      border: 1px solid #f5c6cb;
-      padding: 10px;
-      margin: 10px 0;
-      border-radius: 4px;
-      display: none;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Power BI Report</title>
+    <style>
+        /* Ensure the iframe takes up the full page */
+        #powerbiContainer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        #powerbiFrame {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+    </style>
 </head>
 <body>
-  <h1>Power BI Report</h1>
-  <div id="errorMessage" class="error-message"></div>
-  <div id="reportContainer"></div>
-  
-  <div class="debug-panel">
-    <h3>Debug Information</h3>
-    <div>
-      <button id="testTokenBtn">Test Token</button>
-      <button id="checkCorsBtn">Check CORS</button>
+
+    <!-- Power BI Report Container -->
+    <div id="powerbiContainer">
+        <iframe id="powerbiFrame"
+            src="https://app.powerbi.com/groups/me/reports/782913b3-f792-4f84-bc87-d46092f64932/a0f79580a41a2044790e?experience=power-bi"
+            frameborder="0">
+        </iframe>
     </div>
-    <pre id="debugOutput">Debugging information will appear here...</pre>
-  </div>
 
-  <script>
-    // Debug helper function
-    function logDebug(message, data) {
-      const debugOutput = document.getElementById('debugOutput');
-      const timestamp = new Date().toISOString();
-      let logMessage = `[${timestamp}] ${message}\n`;
-      
-      if (data) {
-        if (typeof data === 'object') {
-          logMessage += JSON.stringify(data, null, 2) + '\n';
-        } else {
-          logMessage += data + '\n';
-        }
-      }
-      
-      debugOutput.textContent += logMessage;
-      console.log(message, data);
-    }
-
-    // Show error message
-    function showError(message) {
-      const errorElement = document.getElementById('errorMessage');
-      errorElement.style.display = 'block';
-      errorElement.textContent = message;
-      logDebug('ERROR: ' + message);
-    }
-
-    // Test token function
-    document.getElementById('testTokenBtn').addEventListener('click', async function() {
-      try {
-        logDebug('Testing token...');
-        const tokenUrl = "https://powerbi-auth-api-a7d4aydgc2d4hrhu.uksouth-01.azurewebsites.net/get-token";
-        const response = await fetch(tokenUrl);
-        const data = await response.json();
-        
-        if (!data.accessToken) {
-          logDebug('Token test failed - No access token in response', data);
-          return;
-        }
-        
-        // Don't log the entire token as it's sensitive
-        const tokenPreview = data.accessToken.substring(0, 20) + '...';
-        logDebug('Token received successfully', { tokenPreview });
-        
-        // Test token with Power BI API
-        try {
-          const testResponse = await fetch('https://api.powerbi.com/v1.0/myorg/groups', {
-            headers: {
-              'Authorization': 'Bearer ' + data.accessToken
-            }
-          });
-          
-          if (testResponse.ok) {
-            const groups = await testResponse.json();
-            logDebug('Token works with Power BI API', { groupCount: groups.value.length });
-          } else {
-            logDebug('Token validation failed', { 
-              status: testResponse.status,
-              statusText: testResponse.statusText
-            });
-          }
-        } catch (apiError) {
-          logDebug('API test failed', apiError.message);
-        }
-      } catch (error) {
-        logDebug('Token fetch failed', error.message);
-      }
-    });
-
-    // CORS check
-    document.getElementById('checkCorsBtn').addEventListener('click', function() {
-      logDebug('Checking CORS for token endpoint...');
-      
-      const img = new Image();
-      img.onload = function() {
-        logDebug('CORS preflight seems to pass - got a response from the server');
-      };
-      img.onerror = function() {
-        // This will almost always error because we're not requesting an image
-        // The important thing is what shows up in the network tab
-        logDebug('Preflight check complete - check browser console for CORS errors');
-      };
-      
-      const tokenUrl = "https://powerbi-auth-api-a7d4aydgc2d4hrhu.uksouth-01.azurewebsites.net/get-token";
-      img.src = tokenUrl;
-    });
-
-    // Main embed code
-    document.addEventListener("DOMContentLoaded", async function () {
-      logDebug('Initializing Power BI embed...');
-      
-      // Endpoint that returns an AAD token for the report
-      const tokenUrl = "https://powerbi-auth-api-a7d4aydgc2d4hrhu.uksouth-01.azurewebsites.net/get-token";
-      
-      try {
-        logDebug('Fetching token from: ' + tokenUrl);
-        const response = await fetch(tokenUrl);
-        
-        if (!response.ok) {
-          throw new Error(`Token fetch failed: ${response.status} ${response.statusText}`);
-        }
-        
-        const data = await response.json();
-        logDebug('Token response received');
-        
-        if (!data.accessToken) {
-          throw new Error("No access token found in response");
-        }
-        
-        // Don't log the full token for security
-        logDebug('Access token received', { tokenStart: data.accessToken.substring(0, 10) + '...' });
-        
-        const accessToken = data.accessToken;
-        
-        // Get models from the Power BI client library
-        let models = window['powerbi-client'].models;
-        if (!models) {
-          throw new Error("Power BI models not found");
-        }
-        
-        // Configure the embed settings with CORRECT embedUrl format
-        const reportId = "782913b3-f792-4f84-bc87-d46092f64932";
-        logDebug('Configuring embed with report ID: ' + reportId);
-        
-        const embedConfiguration = {
-          type: "report",
-          id: reportId,
-          // FIXED: Include reportId in the embedUrl
-          embedUrl: `https://app.powerbi.com/reportEmbed?reportId=${reportId}`,
-          tokenType: models.TokenType.Aad,
-          accessToken: accessToken,
-          permissions: models.Permissions.Read,
-          settings: {
-            panes: {
-              filters: { visible: true },
-              pageNavigation: { visible: true }
-            },
-            bars: {
-              statusBar: { visible: true }
-            }
-          }
-        };
-        
-        logDebug('Embed configuration', {
-          type: embedConfiguration.type,
-          id: embedConfiguration.id,
-          embedUrl: embedConfiguration.embedUrl,
-          tokenType: embedConfiguration.tokenType,
-          permissions: 'models.Permissions.Read'
-        });
-        
-        // Get the container element
-        const reportContainer = document.getElementById("reportContainer");
-        if (!reportContainer) {
-          throw new Error("Report container not found");
-        }
-        
-        // Embed the report
-        logDebug('Embedding report...');
-        let report = powerbi.embed(reportContainer, embedConfiguration);
-        
-        // Add event listeners
-        report.on("loaded", function () {
-          logDebug('Report loaded successfully');
-        });
-        
-        report.on("rendered", function () {
-          logDebug('Report rendered successfully');
-        });
-        
-        report.on("error", function (event) {
-          const errorDetail = event.detail;
-          logDebug('Report error', errorDetail);
-          
-          showError(`Report error: ${errorDetail.message} - ${errorDetail.detailedMessage} (Code: ${errorDetail.errorCode})`);
-          
-          // Provide more helpful information based on error code
-          if (errorDetail.errorCode === "403") {
-            logDebug('This is likely a permissions or domain restriction issue');
-          }
-        });
-      } catch (error) {
-        logDebug('Embedding failed', error.message);
-        showError(`Error: ${error.message}`);
-      }
-    });
-  </script>
 </body>
 </html>
