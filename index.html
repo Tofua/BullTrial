@@ -1,8 +1,10 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <script type="text/javascript">window.$crisp=[];window.CRISP_WEBSITE_ID="fbcb448a-beca-4eb3-9ff0-aa11729254b2";(function(){d=document;s=d.createElement("script");s.src="https://client.crisp.chat/l.js";s.async=1;d.getElementsByTagName("head")[0].appendChild(s);})();</script>
   <meta charset="UTF-8">
-  <title>Merged Dashboard with Animated Login</title>
+  <title>BullWhip App</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/powerbi-client/2.19.1/powerbi.min.js"></script>
   <style>
     /* -----------------------------------------------------------
@@ -361,6 +363,16 @@
     <div id="refreshSpinner">
       <div class="spinner"></div>
     </div>
+      <!-- Add the logout button here -->
+  <button id="logoutBtn" style="position: fixed; top: 15px; right: 15px; z-index: 2147483647; padding: 8px 15px; background-color: #F05123; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">Logout</button>
+  
+  <div id="reportContainer"></div>
+  <div id="fullscreenPrompt">
+    <button id="closeFullscreenPrompt" title="Close">✕</button>
+    <p>Click the button below to enter fullscreen mode</p>
+    <button id="promptFullscreenBtn">Enter Fullscreen</button>
+  </div>
+</div>
     <div id="reportContainer"></div>
     <div id="fullscreenPrompt">
       <button id="closeFullscreenPrompt" title="Close">✕</button>
@@ -368,6 +380,41 @@
       <button id="promptFullscreenBtn">Enter Fullscreen</button>
     </div>
   </div>
+  <script>
+    // Get references to your logout button and relevant sections
+    const logoutBtn = document.getElementById('logoutBtn');
+  
+    logoutBtn.addEventListener('click', () => {
+      // 1) Clear any saved filter values or user info
+      filterValues = {
+        orgIN: "",
+        userIN: ""
+      };
+  
+      // 2) Hide the dashboard
+      dashboardSection.style.display = 'none';
+  
+      // 3) Show the login section again
+      loginSection.style.display = 'flex';
+  
+      // 4) Reset or remove the embedded Power BI report
+      //    so the next login uses a fresh embed.
+      const reportContainer = document.getElementById('reportContainer');
+      powerbi.reset(reportContainer);
+  
+      // 5) (Optional) remove or hide any floating controls so
+      //    they don’t stay on screen.
+      const floatingControls = document.getElementById('floatingControls');
+      if (floatingControls) {
+        floatingControls.remove();
+      }
+  
+      // 6) (Optional) clear username / password fields
+      usernameInput.value = '';
+      passwordInput.value = '';
+    });
+  </script>
+  
 
   <script>
     /* ===========================================================
@@ -515,389 +562,679 @@
     });
 
     /* ===========================================================
-       PART B: LOGIN & DASHBOARD LOGIC (from alittlebitofdislittlebitofdat19.html)
-    =========================================================== */
-    const loginSection = document.getElementById('loginSection');
-    const dashboardSection = document.getElementById('dashboardSection');
-    const loginBtn = document.getElementById('loginBtn');
-    const loginErrorMsg = document.getElementById('loginErrorMsg');
-    const usernameInput = document.getElementById('username');
-    const passwordInput = document.getElementById('password');
+   PART B: LOGIN & DASHBOARD LOGIC (from alittlebitofdislittlebitofdat19.html)
+=========================================================== */
+const loginSection = document.getElementById('loginSection');
+const dashboardSection = document.getElementById('dashboardSection');
+const loginBtn = document.getElementById('loginBtn');
+const loginErrorMsg = document.getElementById('loginErrorMsg');
+const usernameInput = document.getElementById('username');
+const passwordInput = document.getElementById('password');
 
-    function attemptLogin() {
-      const username = usernameInput.value.trim();
-      const password = passwordInput.value;
+// Define user credentials with their corresponding filter values
+const userCredentials = [
+  { username: "Admin", password: "Password", userIN: "S H", orgIN: "BW" },
+  { username: "MikeP", password: "BullMike", userIN: "MP", orgIN: "JW" },
+  { username: "NeilG", password: "BullNeil", userIN: "NG", orgIN: "JW" }
+];
 
-      // Very basic check
-      if (username === 'admin' && password === 'password') {
-        // Hide login, show dashboard
-        loginSection.style.display = 'none';
-        dashboardSection.style.display = 'block';
-        loginErrorMsg.style.display = 'none';
-        // Now initialize the Power BI embed
-        initializeDashboard();
-      } else {
-        // Show error
-        loginErrorMsg.style.display = 'block';
-        passwordInput.value = '';
-        setTimeout(() => {
-          loginErrorMsg.style.display = 'none';
-        }, 3000);
+// Default to empty filter values (will be set after login)
+let filterValues = {
+  orgIN: "",
+  userIN: ""
+};
+
+function attemptLogin() {
+  const username = usernameInput.value.trim();
+  const password = passwordInput.value;
+
+  // Find matching credentials
+  const user = userCredentials.find(
+    u => u.username.toLowerCase() === username.toLowerCase() && u.password === password
+  );
+
+  if (user) {
+    // Set filter values based on user credentials
+    filterValues.orgIN = user.orgIN;
+    filterValues.userIN = user.userIN;
+    
+    // Hide login, show dashboard
+    loginSection.style.display = 'none';
+    dashboardSection.style.display = 'block';
+    loginErrorMsg.style.display = 'none';
+    
+    // Now initialize the Power BI embed
+    initializeDashboard();
+  } else {
+    // Show error
+    loginErrorMsg.style.display = 'block';
+    passwordInput.value = '';
+    setTimeout(() => {
+      loginErrorMsg.style.display = 'none';
+    }, 3000);
+  }
+}
+
+loginBtn.addEventListener('click', attemptLogin);
+passwordInput.addEventListener('keypress', (e) => {
+  if (e.key === 'Enter') {
+    attemptLogin();
+  }
+});
+
+/* -----------------------------------------------------------
+   Initialize the actual Power BI dashboard after login
+----------------------------------------------------------- */
+function initializeDashboard() {
+  // Global variables for token refresh and report tracking
+  let tokenRefreshInterval;
+  let currentAccessToken;
+  let report;
+  let currentPage;
+  let pages = [];
+
+  // Function to refresh the Power BI token automatically
+  function startTokenRefreshTimer() {
+    // Clear any existing interval first
+    clearInterval(tokenRefreshInterval);
+    
+    // Set to refresh every 40 minutes (40 * 60 * 1000 milliseconds)
+    const refreshIntervalMs = 40 * 60 * 1000;
+    
+    console.log(`Token refresh timer started. Will refresh every ${refreshIntervalMs/60000} minutes.`);
+    
+    tokenRefreshInterval = setInterval(async () => {
+      console.log("Token refresh timer triggered. Fetching new token...");
+      try {
+        const response = await fetch("https://powerbitokenapp.azurewebsites.net/api/GetEmbedToken?code=XzC3pncLfW__oe3-UMCbQikTv5-7OrElhjknmOHVMmgDAzFuOUDPng==");
+        const data = await response.json();
+        currentAccessToken = data.token;
+        
+        console.log("New token obtained. Updating report...");
+        
+        // Update the token in the active report
+        if (report) {
+          await report.setAccessToken(currentAccessToken);
+          console.log("Report access token updated successfully");
+        }
+      } catch (error) {
+        console.error("Error refreshing token:", error);
+        showError("Failed to refresh authentication token. You may need to reload the page.");
+      }
+    }, refreshIntervalMs);
+  }
+
+  // Function to stop the token refresh timer when needed
+  function stopTokenRefreshTimer() {
+    clearInterval(tokenRefreshInterval);
+    console.log("Token refresh timer stopped");
+  }
+
+  // ***** NEW: Token Expiration Overlay Functions *****
+  // This function creates a frosted overlay with a "Refresh Access" button
+  function showTokenExpiredOverlay() {
+    // Create overlay element
+    const overlay = document.createElement('div');
+    overlay.id = 'tokenExpiredOverlay';
+    overlay.style.position = 'absolute';
+    overlay.style.top = '0';
+    overlay.style.left = '0';
+    overlay.style.width = '100%';
+    overlay.style.height = '100%';
+    overlay.style.backgroundColor = 'rgba(255, 255, 255, 0.8)';
+    overlay.style.backdropFilter = 'blur(5px)';
+    overlay.style.display = 'flex';
+    overlay.style.flexDirection = 'column';
+    overlay.style.justifyContent = 'center';
+    overlay.style.alignItems = 'center';
+    overlay.style.zIndex = '1000'; // Ensure it’s on top
+    overlay.innerHTML = `
+      <p style="font-size: 1.2em; margin-bottom: 20px;">Access token expired.</p>
+      <button id="refreshAccessBtn" style="padding: 10px 20px; font-size: 1em;">Refresh Access</button>
+    `;
+
+    // Append overlay to the report container
+    const reportContainer = document.getElementById('reportContainer');
+    reportContainer.style.position = 'relative'; // Ensure proper positioning
+    reportContainer.appendChild(overlay);
+
+    // Add click event for refreshing the token manually
+    document.getElementById('refreshAccessBtn').addEventListener('click', async () => {
+      await refreshAccessToken();
+      overlay.remove();
+    });
+  }
+
+  // This function refreshes the token manually when the user clicks "Refresh Access"
+  async function refreshAccessToken() {
+    try {
+      console.log("Manual token refresh triggered.");
+      const response = await fetch("https://powerbitokenapp.azurewebsites.net/api/GetEmbedToken?code=XzC3pncLfW__oe3-UMCbQikTv5-7OrElhjknmOHVMmgDAzFuOUDPng==");
+      const data = await response.json();
+      currentAccessToken = data.token;
+      if (report) {
+        await report.setAccessToken(currentAccessToken);
+        console.log("Token refreshed and updated on the report.");
+      }
+    } catch (error) {
+      console.error("Error refreshing token manually:", error);
+      showError("Failed to refresh token. Please try again.");
+    }
+  }
+  // ***** End NEW code *****
+
+  // Create floating controls
+  const floatingControls = document.createElement('div');
+  floatingControls.id = 'floatingControls';
+  floatingControls.innerHTML = `
+    <button id="fullscreenBtn" class="control-button" title="Enter Fullscreen">
+      <span class="button-label fullscreen-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24"
+          fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="15 3 21 3 21 9"></polyline>
+          <polyline points="9 21 3 21 3 15"></polyline>
+          <line x1="21" y1="3" x2="14" y2="10"></line>
+          <line x1="3" y1="21" x2="10" y2="14"></line>
+        </svg>
+      </span>
+    </button>
+    <button id="pageIconBtn" class="control-button" title="Change Page">
+      <span class="button-label page-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24"
+          fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+      </span>
+    </button>
+    <button id="refreshVisualsBtn" class="control-button" title="Refresh Visuals">
+      <span class="button-label">↻</span>
+    </button>
+  `;
+  document.body.appendChild(floatingControls);
+  makeDraggable(floatingControls);
+
+  function makeDraggable(element) {
+    let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+    element.onmousedown = dragMouseDown;
+    function dragMouseDown(e) {
+      e.preventDefault();
+      pos3 = e.clientX;
+      pos4 = e.clientY;
+      document.onmouseup = closeDragElement;
+      document.onmousemove = elementDrag;
+    }
+    function elementDrag(e) {
+      e.preventDefault();
+      pos1 = pos3 - e.clientX;
+      pos2 = pos4 - e.clientY;
+      pos3 = e.clientX;
+      pos4 = e.clientY;
+      const newTop = element.offsetTop - pos2;
+      const newLeft = element.offsetLeft - pos1;
+      element.style.top = newTop + "px";
+      element.style.left = newLeft + "px";
+      element.style.right = "auto";
+    }
+    function closeDragElement() {
+      document.onmouseup = null;
+      document.onmousemove = null;
+    }
+  }
+
+  function showLoading(message, mode = "normal") {
+    const loadingIndicator = document.getElementById('loadingIndicator');
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    const refreshSpinner = document.getElementById('refreshSpinner');
+    const overlayText = loadingOverlay.querySelector('.loading-text');
+
+    const finalMessage = message || "Loading...";
+    loadingIndicator.textContent = finalMessage;
+    loadingIndicator.style.display = 'block';
+
+    if (mode === "refresh") {
+      refreshSpinner.style.display = 'block';
+      loadingOverlay.style.display = 'none';
+    } else {
+      overlayText.textContent = finalMessage;
+      loadingOverlay.style.display = 'flex';
+      refreshSpinner.style.display = 'none';
+    }
+  }
+
+  function hideLoading() {
+    document.getElementById('loadingIndicator').style.display = 'none';
+    document.getElementById('loadingOverlay').style.display = 'none';
+    document.getElementById('refreshSpinner').style.display = 'none';
+  }
+
+  function showError(message) {
+    const errorElement = document.getElementById('errorMessage');
+    errorElement.style.display = 'block';
+    errorElement.textContent = message;
+    console.error(message);
+    setTimeout(() => {
+      errorElement.style.display = 'none';
+    }, 7000);
+  }
+
+  function showFullscreenPrompt() {
+    document.getElementById('fullscreenPrompt').style.display = 'flex';
+  }
+
+  function hideFullscreenPrompt() {
+    document.getElementById('fullscreenPrompt').style.display = 'none';
+  }
+
+  document.getElementById('closeFullscreenPrompt').addEventListener('click', hideFullscreenPrompt);
+
+  async function enterFullscreen() {
+    if (!document.fullscreenElement) {
+      if (document.documentElement.requestFullscreen) {
+        await document.documentElement.requestFullscreen();
+        const fullscreenIcon = document.querySelector('.fullscreen-icon');
+        const fullscreenBtn = document.getElementById('fullscreenBtn');
+        if (fullscreenIcon) {
+          fullscreenIcon.textContent = '⤓';
+          fullscreenBtn.title = "Exit Fullscreen";
+        }
       }
     }
-    loginBtn.addEventListener('click', attemptLogin);
-    passwordInput.addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') {
-        attemptLogin();
+  }
+
+  async function exitFullscreen() {
+    if (document.exitFullscreen) {
+      await document.exitFullscreen();
+      const fullscreenIcon = document.querySelector('.fullscreen-icon');
+      const fullscreenBtn = document.getElementById('fullscreenBtn');
+      if (fullscreenIcon) {
+        // restore the original SVG
+        fullscreenIcon.innerHTML = `
+          <svg width="16" height="16" viewBox="0 0 24 24"
+            fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="15 3 21 3 21 9"></polyline>
+            <polyline points="9 21 3 21 3 15"></polyline>
+            <line x1="21" y1="3" x2="14" y2="10"></line>
+            <line x1="3" y1="21" x2="10" y2="14"></line>
+          </svg>`;
+        fullscreenBtn.title = "Enter Fullscreen";
+      }
+    }
+  }
+
+  document.getElementById('promptFullscreenBtn').addEventListener('click', async () => {
+    hideFullscreenPrompt();
+    await enterFullscreen();
+  });
+
+  document.addEventListener('keydown', function (event) {
+    if (event.key === 'F11') {
+      event.preventDefault();
+      const fullscreenBtn = document.getElementById('fullscreenBtn');
+      if (fullscreenBtn) fullscreenBtn.click();
+    }
+  });
+
+  document.addEventListener('fullscreenchange', function () {
+    if (!document.fullscreenElement) {
+      const fullscreenIcon = document.querySelector('.fullscreen-icon');
+      const fullscreenBtn = document.getElementById('fullscreenBtn');
+      if (fullscreenIcon) {
+        fullscreenIcon.innerHTML = `
+          <svg width="16" height="16" viewBox="0 0 24 24"
+            fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="15 3 21 3 21 9"></polyline>
+            <polyline points="9 21 3 21 3 15"></polyline>
+            <line x1="21" y1="3" x2="14" y2="10"></line>
+            <line x1="3" y1="21" x2="10" y2="14"></line>
+          </svg>`;
+        fullscreenBtn.title = "Enter Fullscreen";
+      }
+    }
+  });
+
+  const pageIconBtn = document.getElementById('pageIconBtn');
+  const fullscreenBtn = document.getElementById('fullscreenBtn');
+  if (fullscreenBtn) {
+    fullscreenBtn.addEventListener('click', async () => {
+      if (document.fullscreenElement) {
+        await exitFullscreen();
+      } else {
+        await enterFullscreen();
       }
     });
+  }
 
-    /* -----------------------------------------------------------
-       Initialize the actual Power BI dashboard after login
-    ----------------------------------------------------------- */
-    function initializeDashboard() {
-      // Create floating controls
-      const floatingControls = document.createElement('div');
-      floatingControls.id = 'floatingControls';
-      floatingControls.innerHTML = `
-        <button id="fullscreenBtn" class="control-button" title="Enter Fullscreen">
-          <span class="button-label fullscreen-icon">
-            <svg width="16" height="16" viewBox="0 0 24 24"
-              fill="none" stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="15 3 21 3 21 9"></polyline>
-              <polyline points="9 21 3 21 3 15"></polyline>
-              <line x1="21" y1="3" x2="14" y2="10"></line>
-              <line x1="3" y1="21" x2="10" y2="14"></line>
-            </svg>
-          </span>
-        </button>
-        <button id="pageIconBtn" class="control-button" title="Change Page">
-          <span class="button-label page-icon">
-            <svg width="16" height="16" viewBox="0 0 24 24"
+  fetch("https://powerbitokenapp.azurewebsites.net/api/GetEmbedToken?code=XzC3pncLfW__oe3-UMCbQikTv5-7OrElhjknmOHVMmgDAzFuOUDPng==")
+    .then(response => response.json())
+    .then(data => {
+      currentAccessToken = data.token;
+      const reportId = "782913b3-f792-4f84-bc87-d46092f64932";
+      const models = window['powerbi-client'].models;
+
+      // filterValues is now set by the login process
+      console.log(`Using filters for: orgIN=${filterValues.orgIN}, userIN=${filterValues.userIN}`);
+      
+      // Define filters for the entire report (applied to all pages)
+      const reportFilters = [
+        {
+          $schema: "http://powerbi.com/product/schema#basic",
+          target: { table: "Users", column: "OrganisationInitials" },
+          operator: "In",
+          values: [filterValues.orgIN]
+        },
+        {
+          $schema: "http://powerbi.com/product/schema#basic",
+          target: { table: "Users", column: "Name" },
+          operator: "In",
+          values: [filterValues.userIN]
+        }
+      ];
+      
+      // Define filters for page 1 (Prospect)
+      const page1Filters = [
+        {
+          $schema: "http://powerbi.com/product/schema#basic",
+          target: { table: "ListTableClone", column: "OrganisationIN" },
+          operator: "In",
+          values: [filterValues.orgIN]
+        },
+        {
+          $schema: "http://powerbi.com/product/schema#basic",
+          target: { table: "ListTableClone", column: "initial" },
+          operator: "In",
+          values: [filterValues.userIN]
+        },
+        {
+          $schema: "http://powerbi.com/product/schema#basic",
+          target: { table: "Contactstest", column: "OrganisationIN" },
+          operator: "In",
+          values: [filterValues.orgIN]
+        }
+      ];
+      
+      // Define filters for page 2 (Pinpoint)
+      const page2Filters = [
+        {
+          $schema: "http://powerbi.com/product/schema#basic",
+          target: { table: "IntermediaryCompanyNumbers", column: "OrganisationIN" },
+          operator: "In",
+          values: [filterValues.orgIN]
+        },
+        {
+          $schema: "http://powerbi.com/product/schema#basic",
+          target: { table: "intermediarylist", column: "OrganisationIN" },
+          operator: "In",
+          values: [filterValues.orgIN]
+        },
+        {
+          $schema: "http://powerbi.com/product/schema#basic",
+          target: { table: "intermediarylist", column: "Initials" },
+          operator: "In",
+          values: [filterValues.userIN]
+        },
+        {
+          $schema: "http://powerbi.com/product/schema#basic",
+          target: { table: "ListTable", column: "OrganisationIN" },
+          operator: "In",
+          values: [filterValues.orgIN]
+        },
+        {
+          $schema: "http://powerbi.com/product/schema#basic",
+          target: { table: "ListTable", column: "initial" },
+          operator: "In",
+          values: [filterValues.userIN]
+        },
+        {
+          $schema: "http://powerbi.com/product/schema#basic",
+          target: { table: "LLMTable", column: "OrganisationIN" },
+          operator: "In",
+          values: [filterValues.orgIN]
+        },
+        {
+          $schema: "http://powerbi.com/product/schema#basic",
+          target: { table: "LLMTable", column: "Initials" },
+          operator: "In",
+          values: [filterValues.userIN]
+        },
+        {
+          $schema: "http://powerbi.com/product/schema#basic",
+          target: { table: "company_profiles", column: "OrganisationIN" },
+          operator: "In",
+          values: [filterValues.orgIN]
+        }
+      ];
+
+      const embedConfiguration = {
+        type: "report",
+        id: reportId,
+        embedUrl: `https://app.powerbi.com/reportEmbed?reportId=${reportId}`,
+        tokenType: models.TokenType.Aad,
+        accessToken: currentAccessToken,
+        permissions: models.Permissions.Read,
+        settings: {
+          panes: {
+            filters: { visible: false },
+            pageNavigation: { visible: false }
+          },
+          bars: {
+            statusBar: { visible: true }
+          }
+        }
+      };
+
+      // Apply specific filters to a specific page by name
+      async function applyFiltersToPage(pageName, pageFilters) {
+        try {
+          // Get all pages
+          const allPages = await report.getPages();
+          console.log("Available pages:", allPages.map(p => ({name: p.name, displayName: p.displayName})));
+          
+          // Find the target page by name or display name
+          const targetPage = allPages.find(p => 
+            p.name === pageName || 
+            p.displayName === pageName ||
+            p.name.includes(pageName) || 
+            p.displayName.includes(pageName)
+          );
+          
+          if (!targetPage) {
+            console.error(`Page "${pageName}" not found. Available pages: ${allPages.map(p => p.name).join(", ")}`);
+            return false;
+          }
+          
+          console.log(`Applying filters to page: ${targetPage.displayName} (${targetPage.name})...`);
+          await targetPage.setFilters(pageFilters);
+          console.log(`Filters applied successfully to page: ${targetPage.displayName}`);
+          
+          return true;
+        } catch (error) {
+          console.error("Error applying filters:", error);
+          return false;
+        }
+      }
+
+      function setupLoadingTracking(report) {
+        showLoading("Loading report...", "normal");
+        
+        report.on("loaded", async function() {
+          const loadingText = document.querySelector('#loadingOverlay .loading-text');
+          loadingText.textContent = 'Applying filters and rendering visuals...';
+          
+          try {
+            // First apply report-level filters (affects all pages)
+            console.log("Applying report-level filters...");
+            await report.setFilters(reportFilters);
+            console.log("Report-level filters applied successfully");
+            
+            // Get and set up pages
+            await getReportPages();
+            
+            // Apply page-specific filters
+            await applyFiltersToPage("Prospect", page1Filters);
+            await applyFiltersToPage("Pinpoint", page2Filters);
+            
+          } catch (error) {
+            console.error("Error during filter application:", error);
+          }
+          
+          setTimeout(function() {
+            showFullscreenPrompt();
+          }, 1000);
+        });
+        
+        report.on("rendered", function() {
+          hideLoading();
+        });
+        
+        report.on("pageChanged", (event) => {
+          const newPage = event.detail.newPage;
+          showLoading(`Loading page: ${newPage.displayName}...`, "normal");
+          currentPage = pages.find(p => p.name === newPage.name) || newPage;
+        });
+        
+        report.on("renderingStarted", function() {
+          showLoading("Processing...", "normal");
+        });
+        
+        report.on("visualRendered", function(event) {
+          document.getElementById('loadingIndicator').textContent =
+            `Rendered visual: ${event.detail.name}`;
+        });
+        
+        // Modified error handler to catch token expiration errors and show the overlay
+        report.on("error", function(event) {
+          const errorMsg = event.detail.message.toLowerCase();
+          if (errorMsg.includes("token") && errorMsg.includes("expired")) {
+            showTokenExpiredOverlay();
+          } else {
+            showError(`Error: ${event.detail.message}`);
+          }
+          hideLoading();
+        });
+      }
+
+      async function getReportPages() {
+        try {
+          pages = await report.getPages();
+          currentPage = await report.getActivePage();
+          const currentIndex = pages.findIndex(p => p.name === currentPage.name);
+          updatePageIcon(currentIndex);
+        } catch (error) {
+          showError(`Error loading pages: ${error.message}`);
+        }
+      }
+      
+      function updatePageIcon(pageIndex) {
+        const pageIcon = document.querySelector('.page-icon');
+        const pageIconBtn = document.getElementById('pageIconBtn');
+        if (!pageIcon) return;
+        switch (pageIndex) {
+          case 0:
+            pageIcon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24"
               fill="none" stroke="currentColor" stroke-width="2"
               stroke-linecap="round" stroke-linejoin="round">
               <circle cx="11" cy="11" r="8"></circle>
               <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-            </svg>
-          </span>
-        </button>
-        <button id="refreshVisualsBtn" class="control-button" title="Refresh Visuals">
-          <span class="button-label">↻</span>
-        </button>
-      `;
-      document.body.appendChild(floatingControls);
-      makeDraggable(floatingControls);
-
-      function makeDraggable(element) {
-        let pos1=0, pos2=0, pos3=0, pos4=0;
-        element.onmousedown = dragMouseDown;
-        function dragMouseDown(e) {
-          e.preventDefault();
-          pos3 = e.clientX;
-          pos4 = e.clientY;
-          document.onmouseup = closeDragElement;
-          document.onmousemove = elementDrag;
-        }
-        function elementDrag(e) {
-          e.preventDefault();
-          pos1 = pos3 - e.clientX;
-          pos2 = pos4 - e.clientY;
-          pos3 = e.clientX;
-          pos4 = e.clientY;
-          const newTop = element.offsetTop - pos2;
-          const newLeft = element.offsetLeft - pos1;
-          element.style.top = newTop + "px";
-          element.style.left = newLeft + "px";
-          element.style.right = "auto";
-        }
-        function closeDragElement() {
-          document.onmouseup = null;
-          document.onmousemove = null;
+            </svg>`;
+            pageIconBtn.title = "Search Page";
+            break;
+          case 1:
+            pageIcon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24"
+              fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+              <circle cx="12" cy="10" r="3"></circle>
+            </svg>`;
+            pageIconBtn.title = "Pin Page";
+            break;
+          default:
+            pageIcon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24"
+              fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="16" y1="13" x2="8" y2="13"></line>
+              <line x1="16" y1="17" x2="8" y2="17"></line>
+              <polyline points="10 9 9 9 8 9"></polyline>
+            </svg>`;
+            pageIconBtn.title = "Page " + (pageIndex + 1);
         }
       }
-
-      function showLoading(message, mode="normal") {
-        const loadingIndicator = document.getElementById('loadingIndicator');
-        const loadingOverlay = document.getElementById('loadingOverlay');
-        const refreshSpinner = document.getElementById('refreshSpinner');
-        const overlayText = loadingOverlay.querySelector('.loading-text');
-
-        const finalMessage = message || "Loading...";
-        loadingIndicator.textContent = finalMessage;
-        loadingIndicator.style.display = 'block';
-
-        if (mode === "refresh") {
-          refreshSpinner.style.display = 'block';
-          loadingOverlay.style.display = 'none';
-        } else {
-          overlayText.textContent = finalMessage;
-          loadingOverlay.style.display = 'flex';
-          refreshSpinner.style.display = 'none';
-        }
-      }
-      function hideLoading() {
-        document.getElementById('loadingIndicator').style.display = 'none';
-        document.getElementById('loadingOverlay').style.display = 'none';
-        document.getElementById('refreshSpinner').style.display = 'none';
-      }
-      function showError(message) {
-        const errorElement = document.getElementById('errorMessage');
-        errorElement.style.display = 'block';
-        errorElement.textContent = message;
-        console.error(message);
-        setTimeout(() => {
-          errorElement.style.display = 'none';
-        }, 7000);
-      }
-
-      function showFullscreenPrompt() {
-        document.getElementById('fullscreenPrompt').style.display = 'flex';
-      }
-      function hideFullscreenPrompt() {
-        document.getElementById('fullscreenPrompt').style.display = 'none';
-      }
-      document.getElementById('closeFullscreenPrompt').addEventListener('click', hideFullscreenPrompt);
-
-      async function enterFullscreen() {
-        if (!document.fullscreenElement) {
-          if (document.documentElement.requestFullscreen) {
-            await document.documentElement.requestFullscreen();
-            const fullscreenIcon = document.querySelector('.fullscreen-icon');
-            const fullscreenBtn = document.getElementById('fullscreenBtn');
-            if (fullscreenIcon) {
-              fullscreenIcon.textContent = '⤓';
-              fullscreenBtn.title = "Exit Fullscreen";
+      
+      async function navigateToNextPage() {
+        try {
+          if (!pages.length || !currentPage) {
+            await getReportPages();
+            if (!pages.length || !currentPage) {
+              throw new Error("Pages not available");
             }
           }
+          const currentIndex = pages.findIndex(p => p.name === currentPage.name);
+          const nextIndex = (currentIndex + 1) % pages.length;
+          const nextPage = pages[nextIndex];
+          showLoading(`Loading page: ${nextPage.displayName}...`, "normal");
+          await nextPage.setActive();
+          currentPage = nextPage;
+          updatePageIcon(nextIndex);
+        } catch (error) {
+          showError(`Navigation error: ${error.message}`);
+          hideLoading();
         }
       }
-      async function exitFullscreen() {
-        if (document.exitFullscreen) {
-          await document.exitFullscreen();
-          const fullscreenIcon = document.querySelector('.fullscreen-icon');
-          const fullscreenBtn = document.getElementById('fullscreenBtn');
-          if (fullscreenIcon) {
-            // restore the original SVG
-            fullscreenIcon.innerHTML = `
-              <svg width="16" height="16" viewBox="0 0 24 24"
-                fill="none" stroke="currentColor" stroke-width="2"
-                stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="15 3 21 3 21 9"></polyline>
-                <polyline points="9 21 3 21 3 15"></polyline>
-                <line x1="21" y1="3" x2="14" y2="10"></line>
-                <line x1="3" y1="21" x2="10" y2="14"></line>
-              </svg>`;
-            fullscreenBtn.title = "Enter Fullscreen";
-          }
-        }
-      }
-      document.getElementById('promptFullscreenBtn').addEventListener('click', async () => {
-        hideFullscreenPrompt();
-        await enterFullscreen();
-      });
-      document.addEventListener('keydown', function(event) {
-        if (event.key === 'F11') {
-          event.preventDefault();
-          const fullscreenBtn = document.getElementById('fullscreenBtn');
-          if (fullscreenBtn) fullscreenBtn.click();
-        }
-      });
-      document.addEventListener('fullscreenchange', function() {
-        if (!document.fullscreenElement) {
-          const fullscreenIcon = document.querySelector('.fullscreen-icon');
-          const fullscreenBtn = document.getElementById('fullscreenBtn');
-          if (fullscreenIcon) {
-            fullscreenIcon.innerHTML = `
-              <svg width="16" height="16" viewBox="0 0 24 24"
-                fill="none" stroke="currentColor" stroke-width="2"
-                stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="15 3 21 3 21 9"></polyline>
-                <polyline points="9 21 3 21 3 15"></polyline>
-                <line x1="21" y1="3" x2="14" y2="10"></line>
-                <line x1="3" y1="21" x2="10" y2="14"></line>
-              </svg>`;
-            fullscreenBtn.title = "Enter Fullscreen";
-          }
-        }
-      });
-
-      const pageIconBtn = document.getElementById('pageIconBtn');
-      const fullscreenBtn = document.getElementById('fullscreenBtn');
-      if (fullscreenBtn) {
-        fullscreenBtn.addEventListener('click', async () => {
-          if (document.fullscreenElement) {
-            await exitFullscreen();
-          } else {
-            await enterFullscreen();
-          }
+      
+      if (pageIconBtn) {
+        pageIconBtn.addEventListener('click', async () => {
+          await navigateToNextPage();
         });
       }
 
-      fetch("https://powerbitokenapp.azurewebsites.net/api/GetEmbedToken?code=XzC3pncLfW__oe3-UMCbQikTv5-7OrElhjknmOHVMmgDAzFuOUDPng==")
-        .then(response => response.json())
-        .then(data => {
-          const accessToken = data.token;
-          const reportId = "782913b3-f792-4f84-bc87-d46092f64932";
-          const models = window['powerbi-client'].models;
-
-          let report;
-          let currentPage;
-          let pages = [];
-
-          const embedConfiguration = {
-            type: "report",
-            id: reportId,
-            embedUrl: `https://app.powerbi.com/reportEmbed?reportId=${reportId}`,
-            tokenType: models.TokenType.Aad,
-            accessToken: accessToken,
-            permissions: models.Permissions.Read,
-            settings: {
-              panes: {
-                filters: { visible: true },
-                pageNavigation: { visible: false }
-              },
-              bars: {
-                statusBar: { visible: true }
-              }
-            }
-          };
-
-          function setupLoadingTracking(report) {
-            showLoading("Loading report...", "normal");
-            report.on("loaded", function() {
-              const loadingText = document.querySelector('#loadingOverlay .loading-text');
-              loadingText.textContent = 'Rendering visuals...';
-              getReportPages();
-              setTimeout(function() {
-                showFullscreenPrompt();
-              }, 1000);
-            });
-            report.on("rendered", function() {
-              hideLoading();
-            });
-            report.on("pageChanged", (event) => {
-              const newPage = event.detail.newPage;
-              showLoading(`Loading page: ${newPage.displayName}...`, "normal");
-              currentPage = pages.find(p => p.name === newPage.name) || newPage;
-            });
-            report.on("renderingStarted", function() {
-              showLoading("Processing...", "normal");
-            });
-            report.on("visualRendered", function(event) {
-              document.getElementById('loadingIndicator').textContent =
-                `Rendered visual: ${event.detail.name}`;
-            });
-            report.on("error", function(event) {
-              showError(`Error: ${event.detail.message}`);
-              hideLoading();
-            });
-          }
-
-          async function getReportPages() {
-            try {
-              pages = await report.getPages();
-              currentPage = await report.getActivePage();
-              const currentIndex = pages.findIndex(p => p.name === currentPage.name);
-              updatePageIcon(currentIndex);
-            } catch (error) {
-              showError(`Error loading pages: ${error.message}`);
-            }
-          }
-          function updatePageIcon(pageIndex) {
-            const pageIcon = document.querySelector('.page-icon');
-            const pageIconBtn = document.getElementById('pageIconBtn');
-            if (!pageIcon) return;
-            switch (pageIndex) {
-              case 0:
-                pageIcon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24"
-                  fill="none" stroke="currentColor" stroke-width="2"
-                  stroke-linecap="round" stroke-linejoin="round">
-                  <circle cx="11" cy="11" r="8"></circle>
-                  <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                </svg>`;
-                pageIconBtn.title = "Search Page";
-                break;
-              case 1:
-                pageIcon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24"
-                  fill="none" stroke="currentColor" stroke-width="2"
-                  stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
-                  <circle cx="12" cy="10" r="3"></circle>
-                </svg>`;
-                pageIconBtn.title = "Pin Page";
-                break;
-              default:
-                pageIcon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24"
-                  fill="none" stroke="currentColor" stroke-width="2"
-                  stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                  <polyline points="14 2 14 8 20 8"></polyline>
-                  <line x1="16" y1="13" x2="8" y2="13"></line>
-                  <line x1="16" y1="17" x2="8" y2="17"></line>
-                  <polyline points="10 9 9 9 8 9"></polyline>
-                </svg>`;
-                pageIconBtn.title = "Page " + (pageIndex + 1);
-            }
-          }
-          async function navigateToNextPage() {
-            try {
-              if (!pages.length || !currentPage) {
-                await getReportPages();
-                if (!pages.length || !currentPage) {
-                  throw new Error("Pages not available");
-                }
-              }
-              const currentIndex = pages.findIndex(p => p.name === currentPage.name);
-              const nextIndex = (currentIndex + 1) % pages.length;
-              const nextPage = pages[nextIndex];
-              showLoading(`Loading page: ${nextPage.displayName}...`, "normal");
-              await nextPage.setActive();
-              currentPage = nextPage;
-              updatePageIcon(nextIndex);
-            } catch (error) {
-              showError(`Navigation error: ${error.message}`);
-              hideLoading();
-            }
-          }
-          if (pageIconBtn) {
-            pageIconBtn.addEventListener('click', async () => {
-              await navigateToNextPage();
-            });
-          }
-
-          // Refresh Visuals
-          const refreshBtn = document.getElementById('refreshVisualsBtn');
-          if (refreshBtn) {
-            refreshBtn.addEventListener('click', async () => {
-              try {
-                showLoading("Refreshing visuals...", "refresh");
-                await report.refresh({ type: "visual" });
-              } catch (error) {
-                showError(`Visual refresh error: ${error.message}`);
-                hideLoading();
-              }
-            });
-          }
-
-          // Finally embed the report
+      // Refresh Visuals
+      const refreshBtn = document.getElementById('refreshVisualsBtn');
+      if (refreshBtn) {
+        refreshBtn.addEventListener('click', async () => {
           try {
-            showLoading("Loading report...", "normal");
-            const reportContainer = document.getElementById('reportContainer');
-            report = powerbi.embed(reportContainer, embedConfiguration);
-            setupLoadingTracking(report);
+            showLoading("Refreshing visuals...", "refresh");
+            await report.refresh({ type: "visual" });
           } catch (error) {
-            showError(`Initialization error: ${error.message}`);
+            showError(`Visual refresh error: ${error.message}`);
             hideLoading();
           }
-        })
-        .catch(error => {
-          showError("Error retrieving embed token: " + error);
-          document.getElementById('loadingOverlay').style.display = 'none';
-          document.getElementById('loadingIndicator').style.display = 'none';
-          document.getElementById('refreshSpinner').style.display = 'none';
         });
-    }
+      }
+
+      // Finally embed the report
+      try {
+        showLoading("Loading report...", "normal");
+        const reportContainer = document.getElementById('reportContainer');
+        report = powerbi.embed(reportContainer, embedConfiguration);
+        setupLoadingTracking(report);
+        
+        // Start the token refresh timer once the report is embedded
+        startTokenRefreshTimer();
+        
+        // Clean up the token refresh timer when the window is closed or refreshed
+        window.addEventListener('beforeunload', () => {
+          stopTokenRefreshTimer();
+        });
+        
+      } catch (error) {
+        showError(`Initialization error: ${error.message}`);
+        hideLoading();
+      }
+    })
+    .catch(error => {
+      showError("Error retrieving embed token: " + error);
+      document.getElementById('loadingOverlay').style.display = 'none';
+      document.getElementById('loadingIndicator').style.display = 'none';
+      document.getElementById('refreshSpinner').style.display = 'none';
+    });
+}
+
   </script>
 </body>
 </html>
