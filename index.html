@@ -1,6 +1,9 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <!-- Toastr CSS + JS -->
+<link href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
   <link rel="icon" type="image/x-icon" href="favicon.ico">
   <script type="text/javascript">window.$crisp=[];window.CRISP_WEBSITE_ID="fbcb448a-beca-4eb3-9ff0-aa11729254b2";(function(){d=document;s=d.createElement("script");s.src="https://client.crisp.chat/l.js";s.async=1;d.getElementsByTagName("head")[0].appendChild(s);})();</script>
   <meta charset="UTF-8">
@@ -201,19 +204,20 @@
     }
     /* Big overlay for normal loading events */
     #loadingOverlay {
-      position: fixed; 
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background-color: rgba(255, 255, 255, 0.7);
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      z-index: 2147483647; 
-      display: none;
-    }
+  position: fixed; 
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: transparent; /* remove the frosted effect */
+  pointer-events: none;          /* allow interaction with elements behind */
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  z-index: 2147483647; 
+  display: none;
+}
     /* Non-blocking spinner for refresh */
     #refreshSpinner {
       position: fixed;
@@ -329,8 +333,8 @@
     <div class="brand-accent"></div>
     <div class="login-header">
       <!-- Replace this src with the correct logo path or URL -->
-      <img src="images/Bull_Run_Logo_Png.png" alt="Company Logo" style="height: 40px; margin-bottom: 16px;">
-      <h2>Dashboard Login</h2>
+      <img src="images/Bull_Run_Logo_Png.png" alt="Company Logo" style="height: 80px; margin-bottom: 16px;">
+      <h2>BullWhip Login</h2>
     </div>
     
     <div class="form-group">
@@ -561,7 +565,7 @@
       mouse.y = undefined;
     });
 
-    /* ===========================================================
+/* ===========================================================
    PART B: LOGIN & DASHBOARD LOGIC (from alittlebitofdislittlebitofdat19.html)
 =========================================================== */
 const loginSection = document.getElementById('loginSection');
@@ -571,17 +575,16 @@ const loginErrorMsg = document.getElementById('loginErrorMsg');
 const usernameInput = document.getElementById('username');
 const passwordInput = document.getElementById('password');
 
-// Define user credentials with their corresponding filter values
+// Updated user credentials with usrID only
 const userCredentials = [
-  { username: "Admin", password: "Password", userIN: "S H", orgIN: "BW" },
-  { username: "MikeP", password: "BullMike", userIN: "MP", orgIN: "JW" },
-  { username: "NeilG", password: "BullNeil", userIN: "NG", orgIN: "JW" }
+  { username: "Admin", password: "Adminisbullwhip1000", usrID: 1 },
+  { username: "MikeP", password: "BullMike", usrID: 2 },
+  { username: "NeilG", password: "BullNeil", usrID: 3 }
 ];
 
-// Default to empty filter values (will be set after login)
+// Default to empty filter value (will be set after login)
 let filterValues = {
-  orgIN: "",
-  userIN: ""
+  usrID: ""
 };
 
 function attemptLogin() {
@@ -594,9 +597,8 @@ function attemptLogin() {
   );
 
   if (user) {
-    // Set filter values based on user credentials
-    filterValues.orgIN = user.orgIN;
-    filterValues.userIN = user.userIN;
+    // Set filter value based on user credentials
+    filterValues.usrID = user.usrID;
     
     // Hide login, show dashboard
     loginSection.style.display = 'none';
@@ -626,102 +628,14 @@ passwordInput.addEventListener('keypress', (e) => {
    Initialize the actual Power BI dashboard after login
 ----------------------------------------------------------- */
 function initializeDashboard() {
-  // Global variables for token refresh and report tracking
-  let tokenRefreshInterval;
-  let currentAccessToken;
+  // Global variables for report tracking
+  let currentAccessToken = "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsIng1dCI6IkNOdjBPSTNSd3FsSEZFVm5hb01Bc2hDSDJYRSIsImtpZCI6IkNOdjBPSTNSd3FsSEZFVm5hb01Bc2hDSDJYRSJ9.eyJhdWQiOiJodHRwczovL2FuYWx5c2lzLndpbmRvd3MubmV0L3Bvd2VyYmkvYXBpIiwiaXNzIjoiaHR0cHM6Ly9zdHMud2luZG93cy5uZXQvMzc3MzJiOTYtNDk3NC00ZGYwLWFlM2QtM2Y1YmFiNWY5NTY0LyIsImlhdCI6MTc0MzQ1ODY3MSwibmJmIjoxNzQzNDU4NjcxLCJleHAiOjE3NDM0NjI5NjYsImFjY3QiOjAsImFjciI6IjEiLCJhaW8iOiJBWFFBaS84WkFBQUFqZ2pNWXlaQkMzT0hZd0hOZFFpd0tGN285YzRBMnlJNHplQ3hvT1VtM0hRTlg4OVF2QzZlNHZmbkhXZ2dsc3NmaSswQkNDVUt3QzlDY1ZsRU5VUnJPaEJ3WUFvNk9EMVpxMHVCUnppa2VLbGIvR2p0K0RmeDJLLzlIVjhUQnRseWtSMEg2UFYwUEx5RHJTQ3dGK0xIRHc9PSIsImFtciI6WyJwd2QiLCJtZmEiXSwiYXBwaWQiOiI4NzFjMDEwZi01ZTYxLTRmYjEtODNhYy05ODYxMGE3ZTkxMTAiLCJhcHBpZGFjciI6IjAiLCJmYW1pbHlfbmFtZSI6InRyaWFsIiwiZ2l2ZW5fbmFtZSI6InRyaWFsIiwiaWR0eXAiOiJ1c2VyIiwiaXBhZGRyIjoiODQuNzEuNDMuOCIsIm5hbWUiOiJ0cmlhbDEiLCJvaWQiOiI3OTllMTc1OC0yY2VkLTQzNjAtYmE2Zi00NWIxY2Q2NzRkODciLCJwdWlkIjoiMTAwMzIwMDQyRjBGM0VDOCIsInJoIjoiMS5BUk1CbGl0ek4zUko4RTJ1UFQ5YnExLVZaQWtBQUFBQUFBQUF3QUFBQUFBQUFBQVRBZnNUQVEuIiwic2NwIjoidXNlcl9pbXBlcnNvbmF0aW9uIiwic2lkIjoiMDAxNDA1MTktZDk3Yy1iMWY0LWU2Y2UtNmNkMzdmMTVjNzgyIiwic2lnbmluX3N0YXRlIjpbImttc2kiXSwic3ViIjoieGdsWDluR2Y2cjFRS0ZLcVI5NUY1VFlqSElxdEs2QmFHVm1hcEZmY00tMCIsInRpZCI6IjM3NzMyYjk2LTQ5NzQtNGRmMC1hZTNkLTNmNWJhYjVmOTU2NCIsInVuaXF1ZV9uYW1lIjoidHJpYWxASG9zdERhdGEub25taWNyb3NvZnQuY29tIiwidXBuIjoidHJpYWxASG9zdERhdGEub25taWNyb3NvZnQuY29tIiwidXRpIjoiNjBvelMyLUl2VVM1dTFMRW4tQVlBQSIsInZlciI6IjEuMCIsIndpZHMiOlsiYjc5ZmJmNGQtM2VmOS00Njg5LTgxNDMtNzZiMTk0ZTg1NTA5Il0sInhtc19pZHJlbCI6IjEgMTYifQ.E2zcR_eANHFdNm8cWRUUvhYf4mAUwNjAZIoiNYdeFV_QwXw6dsMaYAQXfHnUuuQ2AbCL8b8_K2HM4xN6kbTKEbgbVbZNOtZ6NdIIXo7go7CEaofHni--pkx2QgVtIL-g_fo48F8WLtBROuZaA1kkUMdNEqNlAKbZIeAzYOQHmdP6iiV60oIwqp3XB5wbPC0pgICbR1NsRqAsFKETi26XV55BX3UFAYgH2Q0rgciJ848M96VchmIp4Dc6tMyRbCqcdvc7VR8WrGoZlnPORT6izZdz8p4jQoQ9KXpAB9qiivybCZE9Ha4yTUP26-ayeSZGVu37n7FhStkl7P1B-B2spg";
   let report;
   let currentPage;
   let pages = [];
 
-  // Function to refresh the Power BI token automatically
-  function startTokenRefreshTimer() {
-    // Clear any existing interval first
-    clearInterval(tokenRefreshInterval);
-    
-    // Set to refresh every 40 minutes (40 * 60 * 1000 milliseconds)
-    const refreshIntervalMs = 40 * 60 * 1000;
-    
-    console.log(`Token refresh timer started. Will refresh every ${refreshIntervalMs/60000} minutes.`);
-    
-    tokenRefreshInterval = setInterval(async () => {
-      console.log("Token refresh timer triggered. Fetching new token...");
-      try {
-        const response = await fetch("https://powerbitokenapp.azurewebsites.net/api/GetEmbedToken?code=XzC3pncLfW__oe3-UMCbQikTv5-7OrElhjknmOHVMmgDAzFuOUDPng==");
-        const data = await response.json();
-        currentAccessToken = data.token;
-        
-        console.log("New token obtained. Updating report...");
-        
-        // Update the token in the active report
-        if (report) {
-          await report.setAccessToken(currentAccessToken);
-          console.log("Report access token updated successfully");
-        }
-      } catch (error) {
-        console.error("Error refreshing token:", error);
-        showError("Failed to refresh authentication token. You may need to reload the page.");
-      }
-    }, refreshIntervalMs);
-  }
-
-  // Function to stop the token refresh timer when needed
-  function stopTokenRefreshTimer() {
-    clearInterval(tokenRefreshInterval);
-    console.log("Token refresh timer stopped");
-  }
-
-  // ***** NEW: Token Expiration Overlay Functions *****
-  // This function creates a frosted overlay with a "Refresh Access" button
-  function showTokenExpiredOverlay() {
-    // Create overlay element
-    const overlay = document.createElement('div');
-    overlay.id = 'tokenExpiredOverlay';
-    overlay.style.position = 'absolute';
-    overlay.style.top = '0';
-    overlay.style.left = '0';
-    overlay.style.width = '100%';
-    overlay.style.height = '100%';
-    overlay.style.backgroundColor = 'rgba(255, 255, 255, 0.8)';
-    overlay.style.backdropFilter = 'blur(5px)';
-    overlay.style.display = 'flex';
-    overlay.style.flexDirection = 'column';
-    overlay.style.justifyContent = 'center';
-    overlay.style.alignItems = 'center';
-    overlay.style.zIndex = '1000'; // Ensure it’s on top
-    overlay.innerHTML = `
-      <p style="font-size: 1.2em; margin-bottom: 20px;">Access token expired.</p>
-      <button id="refreshAccessBtn" style="padding: 10px 20px; font-size: 1em;">Refresh Access</button>
-    `;
-
-    // Append overlay to the report container
-    const reportContainer = document.getElementById('reportContainer');
-    reportContainer.style.position = 'relative'; // Ensure proper positioning
-    reportContainer.appendChild(overlay);
-
-    // Add click event for refreshing the token manually
-    document.getElementById('refreshAccessBtn').addEventListener('click', async () => {
-      await refreshAccessToken();
-      overlay.remove();
-    });
-  }
-
-  // This function refreshes the token manually when the user clicks "Refresh Access"
-  async function refreshAccessToken() {
-    try {
-      console.log("Manual token refresh triggered.");
-      const response = await fetch("https://powerbitokenapp.azurewebsites.net/api/GetEmbedToken?code=XzC3pncLfW__oe3-UMCbQikTv5-7OrElhjknmOHVMmgDAzFuOUDPng==");
-      const data = await response.json();
-      currentAccessToken = data.token;
-      if (report) {
-        await report.setAccessToken(currentAccessToken);
-        console.log("Token refreshed and updated on the report.");
-      }
-    } catch (error) {
-      console.error("Error refreshing token manually:", error);
-      showError("Failed to refresh token. Please try again.");
-    }
-  }
-  // ***** End NEW code *****
+  // ***** Removed token refresh and expiration overlay functions *****
+  // Since we're using a permanent hardcoded token, no token refresh logic is needed.
 
   // Create floating controls
   const floatingControls = document.createElement('div');
@@ -850,7 +764,7 @@ function initializeDashboard() {
       const fullscreenIcon = document.querySelector('.fullscreen-icon');
       const fullscreenBtn = document.getElementById('fullscreenBtn');
       if (fullscreenIcon) {
-        // restore the original SVG
+        // Restore the original SVG
         fullscreenIcon.innerHTML = `
           <svg width="16" height="16" viewBox="0 0 24 24"
             fill="none" stroke="currentColor" stroke-width="2"
@@ -909,332 +823,305 @@ function initializeDashboard() {
     });
   }
 
-  fetch("https://powerbitokenapp.azurewebsites.net/api/GetEmbedToken?code=XzC3pncLfW__oe3-UMCbQikTv5-7OrElhjknmOHVMmgDAzFuOUDPng==")
-    .then(response => response.json())
-    .then(data => {
-      currentAccessToken = data.token;
-      const reportId = "782913b3-f792-4f84-bc87-d46092f64932";
-      const models = window['powerbi-client'].models;
+  // ===== Using a permanently hardcoded embed token =====
+  const reportId = "aadaa979-0c03-40fa-bc94-71017350542f";
+  const models = window['powerbi-client'].models;
 
-      // filterValues is now set by the login process
-      console.log(`Using filters for: orgIN=${filterValues.orgIN}, userIN=${filterValues.userIN}`);
-      
-      // Define filters for the entire report (applied to all pages)
-      const reportFilters = [
-        {
-          $schema: "http://powerbi.com/product/schema#basic",
-          target: { table: "Users", column: "OrganisationInitials" },
-          operator: "In",
-          values: [filterValues.orgIN]
-        },
-        {
-          $schema: "http://powerbi.com/product/schema#basic",
-          target: { table: "Users", column: "Name" },
-          operator: "In",
-          values: [filterValues.userIN]
-        }
-      ];
-      
-      // Define filters for page 1 (Prospect)
-      const page1Filters = [
-        {
-          $schema: "http://powerbi.com/product/schema#basic",
-          target: { table: "ListTableClone", column: "OrganisationIN" },
-          operator: "In",
-          values: [filterValues.orgIN]
-        },
-        {
-          $schema: "http://powerbi.com/product/schema#basic",
-          target: { table: "ListTableClone", column: "initial" },
-          operator: "In",
-          values: [filterValues.userIN]
-        },
-        {
-          $schema: "http://powerbi.com/product/schema#basic",
-          target: { table: "Contactstest", column: "OrganisationIN" },
-          operator: "In",
-          values: [filterValues.orgIN]
-        }
-      ];
-      
-      // Define filters for page 2 (Pinpoint)
-      const page2Filters = [
-        {
-          $schema: "http://powerbi.com/product/schema#basic",
-          target: { table: "IntermediaryCompanyNumbers", column: "OrganisationIN" },
-          operator: "In",
-          values: [filterValues.orgIN]
-        },
-        {
-          $schema: "http://powerbi.com/product/schema#basic",
-          target: { table: "intermediarylist", column: "OrganisationIN" },
-          operator: "In",
-          values: [filterValues.orgIN]
-        },
-        {
-          $schema: "http://powerbi.com/product/schema#basic",
-          target: { table: "intermediarylist", column: "Initials" },
-          operator: "In",
-          values: [filterValues.userIN]
-        },
-        {
-          $schema: "http://powerbi.com/product/schema#basic",
-          target: { table: "ListTable", column: "OrganisationIN" },
-          operator: "In",
-          values: [filterValues.orgIN]
-        },
-        {
-          $schema: "http://powerbi.com/product/schema#basic",
-          target: { table: "ListTable", column: "initial" },
-          operator: "In",
-          values: [filterValues.userIN]
-        },
-        {
-          $schema: "http://powerbi.com/product/schema#basic",
-          target: { table: "LLMTable", column: "OrganisationIN" },
-          operator: "In",
-          values: [filterValues.orgIN]
-        },
-        {
-          $schema: "http://powerbi.com/product/schema#basic",
-          target: { table: "LLMTable", column: "Initials" },
-          operator: "In",
-          values: [filterValues.userIN]
-        },
-        {
-          $schema: "http://powerbi.com/product/schema#basic",
-          target: { table: "company_profiles", column: "OrganisationIN" },
-          operator: "In",
-          values: [filterValues.orgIN]
-        }
-      ];
+  // Log the filter value for debugging
+  console.log(`Using filter for usrID=${filterValues.usrID}`);
+  
+  // Report-level filters: none (full page – no filters)
+  const reportFilters = [];
+  
+  // Define filters for page 1 (Users table)
+  const page1Filters = [
+    {
+      $schema: "http://powerbi.com/product/schema#basic",
+      target: { table: "Users", column: "UserID" },
+      operator: "In",
+      values: [filterValues.usrID]
+    }
+  ];
+  
+  // Define filters for page 2 (UsersClone table)
+  const page2Filters = [
+    {
+      $schema: "http://powerbi.com/product/schema#basic",
+      target: { table: "UsersClone", column: "UserID" },
+      operator: "In",
+      values: [filterValues.usrID]
+    }
+  ];
 
-      const embedConfiguration = {
-        type: "report",
-        id: reportId,
-        embedUrl: `https://app.powerbi.com/reportEmbed?reportId=${reportId}`,
-        tokenType: models.TokenType.Aad,
-        accessToken: currentAccessToken,
-        permissions: models.Permissions.Read,
-        settings: {
-          panes: {
-            filters: { visible: false },
-            pageNavigation: { visible: false }
-          },
-          bars: {
-            statusBar: { visible: true }
-          }
-        }
-      };
-
-      // Apply specific filters to a specific page by name
-      async function applyFiltersToPage(pageName, pageFilters) {
-        try {
-          // Get all pages
-          const allPages = await report.getPages();
-          console.log("Available pages:", allPages.map(p => ({name: p.name, displayName: p.displayName})));
-          
-          // Find the target page by name or display name
-          const targetPage = allPages.find(p => 
-            p.name === pageName || 
-            p.displayName === pageName ||
-            p.name.includes(pageName) || 
-            p.displayName.includes(pageName)
-          );
-          
-          if (!targetPage) {
-            console.error(`Page "${pageName}" not found. Available pages: ${allPages.map(p => p.name).join(", ")}`);
-            return false;
-          }
-          
-          console.log(`Applying filters to page: ${targetPage.displayName} (${targetPage.name})...`);
-          await targetPage.setFilters(pageFilters);
-          console.log(`Filters applied successfully to page: ${targetPage.displayName}`);
-          
-          return true;
-        } catch (error) {
-          console.error("Error applying filters:", error);
-          return false;
-        }
+  const embedConfiguration = {
+    type: "report",
+    id: reportId,
+    embedUrl: `https://app.powerbi.com/reportEmbed?reportId=${reportId}`,
+    tokenType: models.TokenType.Aad,
+    accessToken: currentAccessToken,
+    permissions: models.Permissions.Read,
+    settings: {
+      panes: {
+        filters: { visible: false },
+        pageNavigation: { visible: false }
+      },
+      bars: {
+        statusBar: { visible: true }
       }
+    }
+  };
 
-      function setupLoadingTracking(report) {
-        showLoading("Loading report...", "normal");
-        
-        report.on("loaded", async function() {
-          const loadingText = document.querySelector('#loadingOverlay .loading-text');
-          loadingText.textContent = 'Applying filters and rendering visuals...';
-          
-          try {
-            // First apply report-level filters (affects all pages)
-            console.log("Applying report-level filters...");
-            await report.setFilters(reportFilters);
-            console.log("Report-level filters applied successfully");
-            
-            // Get and set up pages
-            await getReportPages();
-            
-            // Apply page-specific filters
-            await applyFiltersToPage("Prospect", page1Filters);
-            await applyFiltersToPage("Pinpoint", page2Filters);
-            
-          } catch (error) {
-            console.error("Error during filter application:", error);
-          }
-          
-          setTimeout(function() {
-            showFullscreenPrompt();
-          }, 1000);
-        });
-        
-        report.on("rendered", function() {
-          hideLoading();
-        });
-        
-        report.on("pageChanged", (event) => {
-          const newPage = event.detail.newPage;
-          showLoading(`Loading page: ${newPage.displayName}...`, "normal");
-          currentPage = pages.find(p => p.name === newPage.name) || newPage;
-        });
-        
-        report.on("renderingStarted", function() {
-          showLoading("Processing...", "normal");
-        });
-        
-        report.on("visualRendered", function(event) {
-          document.getElementById('loadingIndicator').textContent =
-            `Rendered visual: ${event.detail.name}`;
-        });
-        
-        // Modified error handler to catch token expiration errors and show the overlay
-        report.on("error", function(event) {
-          const errorMsg = event.detail.message.toLowerCase();
-          if (errorMsg.includes("token") && errorMsg.includes("expired")) {
-            showTokenExpiredOverlay();
-          } else {
-            showError(`Error: ${event.detail.message}`);
-          }
-          hideLoading();
-        });
-      }
-
-      async function getReportPages() {
-        try {
-          pages = await report.getPages();
-          currentPage = await report.getActivePage();
-          const currentIndex = pages.findIndex(p => p.name === currentPage.name);
-          updatePageIcon(currentIndex);
-        } catch (error) {
-          showError(`Error loading pages: ${error.message}`);
-        }
+  // Apply specific filters to a specific page by name
+  async function applyFiltersToPage(pageName, pageFilters) {
+    try {
+      // Get all pages
+      const allPages = await report.getPages();
+      console.log("Available pages:", allPages.map(p => ({name: p.name, displayName: p.displayName})));
+      
+      // Find the target page by name or display name
+      const targetPage = allPages.find(p => 
+        p.name === pageName || 
+        p.displayName === pageName ||
+        p.name.includes(pageName) || 
+        p.displayName.includes(pageName)
+      );
+      
+      if (!targetPage) {
+        console.error(`Page "${pageName}" not found. Available pages: ${allPages.map(p => p.name).join(", ")}`);
+        return false;
       }
       
-      function updatePageIcon(pageIndex) {
-        const pageIcon = document.querySelector('.page-icon');
-        const pageIconBtn = document.getElementById('pageIconBtn');
-        if (!pageIcon) return;
-        switch (pageIndex) {
-          case 0:
-            pageIcon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24"
-              fill="none" stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="11" cy="11" r="8"></circle>
-              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-            </svg>`;
-            pageIconBtn.title = "Search Page";
-            break;
-          case 1:
-            pageIcon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24"
-              fill="none" stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round">
-              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
-              <circle cx="12" cy="10" r="3"></circle>
-            </svg>`;
-            pageIconBtn.title = "Pin Page";
-            break;
-          default:
-            pageIcon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24"
-              fill="none" stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-              <polyline points="14 2 14 8 20 8"></polyline>
-              <line x1="16" y1="13" x2="8" y2="13"></line>
-              <line x1="16" y1="17" x2="8" y2="17"></line>
-              <polyline points="10 9 9 9 8 9"></polyline>
-            </svg>`;
-            pageIconBtn.title = "Page " + (pageIndex + 1);
-        }
-      }
+      console.log(`Applying filters to page: ${targetPage.displayName} (${targetPage.name})...`);
+      await targetPage.setFilters(pageFilters);
+      console.log(`Filters applied successfully to page: ${targetPage.displayName}`);
       
-      async function navigateToNextPage() {
-        try {
-          if (!pages.length || !currentPage) {
-            await getReportPages();
-            if (!pages.length || !currentPage) {
-              throw new Error("Pages not available");
-            }
-          }
-          const currentIndex = pages.findIndex(p => p.name === currentPage.name);
-          const nextIndex = (currentIndex + 1) % pages.length;
-          const nextPage = pages[nextIndex];
-          showLoading(`Loading page: ${nextPage.displayName}...`, "normal");
-          await nextPage.setActive();
-          currentPage = nextPage;
-          updatePageIcon(nextIndex);
-        } catch (error) {
-          showError(`Navigation error: ${error.message}`);
-          hideLoading();
-        }
-      }
+      return true;
+    } catch (error) {
+      console.error("Error applying filters:", error);
+      return false;
+    }
+  }
+
+  function setupLoadingTracking(report) {
+    showLoading("Loading report...", "normal");
+    
+    report.on("loaded", async function() {
+      const loadingText = document.querySelector('#loadingOverlay .loading-text');
+      loadingText.textContent = 'Applying filters and rendering visuals...';
       
-      if (pageIconBtn) {
-        pageIconBtn.addEventListener('click', async () => {
-          await navigateToNextPage();
-        });
-      }
-
-      // Refresh Visuals
-      const refreshBtn = document.getElementById('refreshVisualsBtn');
-      if (refreshBtn) {
-        refreshBtn.addEventListener('click', async () => {
-          try {
-            showLoading("Refreshing visuals...", "refresh");
-            await report.refresh({ type: "visual" });
-          } catch (error) {
-            showError(`Visual refresh error: ${error.message}`);
-            hideLoading();
-          }
-        });
-      }
-
-      // Finally embed the report
       try {
-        showLoading("Loading report...", "normal");
-        const reportContainer = document.getElementById('reportContainer');
-        report = powerbi.embed(reportContainer, embedConfiguration);
-        setupLoadingTracking(report);
+        // Apply report-level filters (none in this case)
+        console.log("Applying report-level filters...");
+        await report.setFilters(reportFilters);
+        console.log("Report-level filters applied successfully");
         
-        // Start the token refresh timer once the report is embedded
-        startTokenRefreshTimer();
+        // Get and set up pages
+        await getReportPages();
         
-        // Clean up the token refresh timer when the window is closed or refreshed
-        window.addEventListener('beforeunload', () => {
-          stopTokenRefreshTimer();
-        });
+        // Apply page-specific filters
+        await applyFiltersToPage("Prospect", page1Filters);
+        await applyFiltersToPage("Pinpoint", page2Filters);
         
       } catch (error) {
-        showError(`Initialization error: ${error.message}`);
+        console.error("Error during filter application:", error);
+      }
+      
+      setTimeout(function() {
+        showFullscreenPrompt();
+      }, 1000);
+    });
+    
+    report.on("rendered", function() {
+      hideLoading();
+    });
+    
+    report.on("pageChanged", (event) => {
+      const newPage = event.detail.newPage;
+      showLoading(`Loading page: ${newPage.displayName}...`, "normal");
+      currentPage = pages.find(p => p.name === newPage.name) || newPage;
+    });
+    
+    report.on("renderingStarted", function() {
+      showLoading("Processing...", "normal");
+    });
+    
+    report.on("visualRendered", function(event) {
+      document.getElementById('loadingIndicator').textContent =
+        `Rendered visual: ${event.detail.name}`;
+    });
+    
+    // Modified error handler to show any errors
+    report.on("error", function(event) {
+      showError(`Error: ${event.detail.message}`);
+      hideLoading();
+    });
+  }
+
+  async function getReportPages() {
+    try {
+      pages = await report.getPages();
+      currentPage = await report.getActivePage();
+      const currentIndex = pages.findIndex(p => p.name === currentPage.name);
+      updatePageIcon(currentIndex);
+    } catch (error) {
+      showError(`Error loading pages: ${error.message}`);
+    }
+  }
+  
+  function updatePageIcon(pageIndex) {
+    const pageIcon = document.querySelector('.page-icon');
+    const pageIconBtn = document.getElementById('pageIconBtn');
+    if (!pageIcon) return;
+    switch (pageIndex) {
+      case 0:
+        pageIcon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24"
+          fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>`;
+        pageIconBtn.title = "Search Page";
+        break;
+      case 1:
+        pageIcon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24"
+          fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+          <circle cx="12" cy="10" r="3"></circle>
+        </svg>`;
+        pageIconBtn.title = "Pin Page";
+        break;
+      default:
+        pageIcon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24"
+          fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+          <polyline points="14 2 14 8 20 8"></polyline>
+          <line x1="16" y1="13" x2="8" y2="13"></line>
+          <line x1="16" y1="17" x2="8" y2="17"></line>
+          <polyline points="10 9 9 9 8 9"></polyline>
+        </svg>`;
+        pageIconBtn.title = "Page " + (pageIndex + 1);
+    }
+  }
+  
+  async function navigateToNextPage() {
+    try {
+      if (!pages.length || !currentPage) {
+        await getReportPages();
+        if (!pages.length || !currentPage) {
+          throw new Error("Pages not available");
+        }
+      }
+      const currentIndex = pages.findIndex(p => p.name === currentPage.name);
+      const nextIndex = (currentIndex + 1) % pages.length;
+      const nextPage = pages[nextIndex];
+      showLoading(`Loading page: ${nextPage.displayName}...`, "normal");
+      await nextPage.setActive();
+      currentPage = nextPage;
+      updatePageIcon(nextIndex);
+    } catch (error) {
+      showError(`Navigation error: ${error.message}`);
+      hideLoading();
+    }
+  }
+  
+  if (pageIconBtn) {
+    pageIconBtn.addEventListener('click', async () => {
+      await navigateToNextPage();
+    });
+  }
+
+  // Refresh Visuals
+  const refreshBtn = document.getElementById('refreshVisualsBtn');
+  if (refreshBtn) {
+    refreshBtn.addEventListener('click', async () => {
+      try {
+        showLoading("Refreshing visuals...", "refresh");
+        await report.refresh({ type: "visual" });
+      } catch (error) {
+        showError(`Visual refresh error: ${error.message}`);
         hideLoading();
       }
-    })
-    .catch(error => {
-      showError("Error retrieving embed token: " + error);
-      document.getElementById('loadingOverlay').style.display = 'none';
-      document.getElementById('loadingIndicator').style.display = 'none';
-      document.getElementById('refreshSpinner').style.display = 'none';
     });
-}
+  }
 
-  </script>
+  // Finally embed the report
+  try {
+    showLoading("Loading report...", "normal");
+    const reportContainer = document.getElementById('reportContainer');
+    report = powerbi.embed(reportContainer, embedConfiguration);
+    setupLoadingTracking(report);
+  } catch (error) {
+    showError(`Initialization error: ${error.message}`);
+    hideLoading();
+  }
+}
+</script>
+<script>
+    // --- Polling settings ---
+    const pollingInterval = 10000; // Check every 10 seconds
+    const storageContainerUrl = "https://tofsbigdataa77f.blob.core.windows.net/webhookstore"; // Public read access must be enabled
+    
+    // Track already seen files to avoid duplicate notifications
+    const seenFiles = new Set();
+    
+    // Utility to create notification
+    function showPhoneNotification(message) {
+      const toast = document.createElement("div");
+      toast.textContent = message;
+      toast.style.cssText = `
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background: #0d6efd;
+        color: white;
+        padding: 12px 16px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        z-index: 9999;
+        font-family: sans-serif;
+      `;
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 6000);
+    }
+    
+    // Poll the container for new files
+    async function pollWebhookContainer() {
+      try {
+        const res = await fetch(`${storageContainerUrl}?restype=container&comp=list`);
+        const text = await res.text();
+        const parser = new DOMParser();
+        const xml = parser.parseFromString(text, "application/xml");
+        const blobs = xml.getElementsByTagName("Name");
+    
+        for (let i = 0; i < blobs.length; i++) {
+          const blobName = blobs[i].textContent;
+    
+          if (seenFiles.has(blobName)) continue;
+    
+          seenFiles.add(blobName);
+    
+          // Fetch and inspect the blob
+          const blobRes = await fetch(`${storageContainerUrl}/${blobName}`);
+          const blobData = await blobRes.json();
+    
+          const person = blobData?.people?.[0];
+          const phoneNumbers = person?.phone_numbers;
+    
+          if (blobData.status === "success" && phoneNumbers?.length > 0) {
+            const phones = phoneNumbers.map(p => p.raw_number).join(", ");
+            showPhoneNotification(`📞 New number found: ${phones}`);
+          }
+        }
+      } catch (err) {
+        console.error("Polling error:", err);
+      }
+    }
+    
+    // Start polling
+    setInterval(pollWebhookContainer, pollingInterval);
+    pollWebhookContainer(); // Run immediately on load
+    </script>    
 </body>
 </html>
