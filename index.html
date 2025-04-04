@@ -1118,5 +1118,692 @@ function initializeDashboard() {
     showNotification("66fa4ae6b8b4ca0001575c74", "+447894672453, +441709535101");
   }, 1500);
 </script>
+<script>
+  // --- Polling settings ---
+  const pollingInterval = 10000; // Check every 10 seconds
+  const storageContainerUrl = "https://tofsbigdataa77f.blob.core.windows.net/webhookstore"; // Public read access must be enabled
+  
+  // Track already seen files to avoid duplicate notifications
+  const seenFiles = new Set();
+  
+  // Notification system
+  class NotificationSystem {
+    constructor() {
+      this.notifications = [];
+      this.historyData = [];
+      this.container = null;
+      this.historyTab = null;
+      this.historyPanel = null;
+      this.isHistoryOpen = false;
+      
+      // Define SVG icons
+      this.icons = {
+        phone: `<svg class="icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"></path>
+        </svg>`,
+        x: `<svg class="icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>`,
+        close: `<svg class="icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>`,
+        chevronDown: `<svg class="icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <polyline points="6 9 12 15 18 9"></polyline>
+        </svg>`,
+        history: `<svg class="icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <polyline points="12 8 12 12 14 14"></polyline>
+          <path d="M3.05 11a9 9 0 1 1 .5 4m-.5 5v-5h5"></path>
+        </svg>`
+      };
+      
+      this.initStyles();
+      this.initContainer();
+      this.initHistoryTab();
+    }
+  
+    initStyles() {
+      // Add styles to document
+      const style = document.createElement('style');
+      style.textContent = `
+        /* SVG Icon styles */
+        .icon {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          height: 20px;
+          width: 20px;
+          stroke-width: 2;
+          stroke: currentColor;
+          fill: none;
+        }
+        
+        .notification-container {
+          position: fixed;
+          bottom: 100px;
+          right: 30px;
+          z-index: 9998;
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+        
+        .notification {
+          background: linear-gradient(135deg, #F05123, #F07123);
+          color: white;
+          border-radius: 12px;
+          box-shadow: 0 4px 15px rgba(240, 81, 35, 0.25);
+          overflow: hidden;
+          width: 300px;
+          transition: all 0.3s ease;
+          opacity: 0;
+          transform: translateX(50px);
+        }
+        
+        .notification.failure {
+          background: linear-gradient(135deg, #6c757d, #495057);
+          box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+          width: 280px;
+        }
+        
+        .notification.show {
+          opacity: 1;
+          transform: translateX(0);
+        }
+        
+        .notification-header {
+          padding: 12px 16px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          cursor: pointer;
+        }
+        
+        .notification-title {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          font-weight: 600;
+        }
+        
+        .notification-icon {
+          font-size: 18px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        
+        .notification-icon .icon {
+          stroke-width: 2.5;
+        }
+        
+        .notification-content {
+          max-height: 0;
+          overflow: hidden;
+          transition: max-height 0.3s ease;
+          padding: 0 16px;
+        }
+        
+        .notification-content.expanded {
+          max-height: 200px;
+          padding-bottom: 12px;
+        }
+        
+        .close-btn {
+          background: none;
+          border: none;
+          color: white;
+          cursor: pointer;
+          opacity: 0.7;
+          transition: opacity 0.2s;
+          padding: 0;
+          font-size: 16px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        
+        .close-btn:hover {
+          opacity: 1;
+        }
+        
+        .notification-phone {
+          margin: 4px 0;
+          font-size: 14px;
+          opacity: 0.9;
+        }
+        
+        .notification-name {
+          font-size: 16px;
+          margin-top: 6px;
+        }
+        
+        .notification-company {
+          font-size: 14px;
+          opacity: 0.9;
+          margin-top: 2px;
+          font-style: italic;
+        }
+        
+        .expand-icon {
+          transition: transform 0.3s ease;
+          margin-left: 8px;
+          font-size: 12px;
+          display: flex;
+          align-items: center;
+        }
+        
+        .expanded .expand-icon {
+          transform: rotate(180deg);
+        }
+        
+        /* History Tab Styles */
+        .history-tab {
+          position: fixed;
+          bottom: 100px;
+          right: 30px;
+          background: linear-gradient(135deg, #F05123, #F07123);
+          color: white;
+          width: 50px;
+          height: 50px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          box-shadow: 0 4px 15px rgba(240, 81, 35, 0.25);
+          z-index: 9999;
+          transition: all 0.3s ease;
+        }
+        
+        .history-tab .icon {
+          width: 22px;
+          height: 22px;
+        }
+        
+        .history-tab:hover {
+          transform: scale(1.05);
+        }
+        
+        .history-tab-icon {
+          font-size: 22px;
+        }
+        
+        .history-panel {
+          position: fixed;
+          bottom: 160px;
+          right: 30px;
+          background: white;
+          border-radius: 12px;
+          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+          width: 320px;
+          max-height: 400px;
+          z-index: 9997;
+          overflow: hidden;
+          transition: all 0.3s ease;
+          opacity: 0;
+          transform: translateY(20px);
+          pointer-events: none;
+        }
+        
+        .history-panel.open {
+          opacity: 1;
+          transform: translateY(0);
+          pointer-events: all;
+        }
+        
+        .history-header {
+          padding: 15px;
+          background: linear-gradient(135deg, #F05123, #F07123);
+          color: white;
+          font-weight: 600;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        }
+        
+        .history-content {
+          overflow-y: auto;
+          max-height: 340px;
+          padding: 10px 0;
+        }
+        
+        .history-item {
+          padding: 10px 15px;
+          border-bottom: 1px solid #f0f0f0;
+          cursor: pointer;
+          transition: background 0.2s;
+        }
+        
+        .history-item:hover {
+          background: #f8f9fa;
+        }
+        
+        .history-item.history-item-failure {
+          background-color: #f8f9fa;
+          border-left: 3px solid #6c757d;
+        }
+        
+        .history-item.history-item-failure:hover {
+          background: #f0f0f0;
+        }
+        
+        .history-item-header {
+          display: flex;
+          justify-content: space-between;
+          font-weight: 500;
+          margin-bottom: 5px;
+        }
+        
+        .history-timestamp {
+          font-size: 12px;
+          color: #6c757d;
+        }
+        
+        .history-phones {
+          font-size: 14px;
+          color: #495057;
+        }
+        
+        .empty-history {
+          padding: 30px 15px;
+          text-align: center;
+          color: #6c757d;
+          font-style: italic;
+        }
+        
+        .notification-badge {
+          position: absolute;
+          top: 0;
+          right: 0;
+          background: #dc3545;
+          color: white;
+          border-radius: 50%;
+          width: 20px;
+          height: 20px;
+          font-size: 12px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transform: translate(30%, -30%);
+          opacity: 0;
+          transition: opacity 0.3s;
+        }
+        
+        .notification-badge.show {
+          opacity: 1;
+        }
+        
+        /* When history panel is open, adjust notifications container */
+        .notification-container.history-open {
+          bottom: 170px;
+        }
+      `;
+      document.head.appendChild(style);
+    }
+  
+    initContainer() {
+      this.container = document.createElement('div');
+      this.container.className = 'notification-container';
+      document.body.appendChild(this.container);
+    }
+    
+    initHistoryTab() {
+      // Create history tab
+      this.historyTab = document.createElement('div');
+      this.historyTab.className = 'history-tab';
+      this.historyTab.innerHTML = `
+        ${this.icons.history}
+        <span class="notification-badge">0</span>
+      `;
+      document.body.appendChild(this.historyTab);
+      
+      // Create history panel
+      this.historyPanel = document.createElement('div');
+      this.historyPanel.className = 'history-panel';
+      this.historyPanel.innerHTML = `
+        <div class="history-header">
+          <span>Notification History</span>
+          <button class="close-btn">${this.icons.close}</button>
+        </div>
+        <div class="history-content">
+          <div class="empty-history">No notifications yet</div>
+        </div>
+      `;
+      document.body.appendChild(this.historyPanel);
+      
+      // Add event listeners
+      this.historyTab.addEventListener('click', () => this.toggleHistory());
+      this.historyPanel.querySelector('.close-btn').addEventListener('click', () => this.toggleHistory(false));
+      
+      // Close history when clicking outside
+      document.addEventListener('click', (e) => {
+        if (this.isHistoryOpen && 
+            !this.historyPanel.contains(e.target) && 
+            !this.historyTab.contains(e.target)) {
+          this.toggleHistory(false);
+        }
+      });
+    }
+    
+    toggleHistory(force = null) {
+      this.isHistoryOpen = force !== null ? force : !this.isHistoryOpen;
+      
+      if (this.isHistoryOpen) {
+        this.historyPanel.classList.add('open');
+        this.container.classList.add('history-open');
+        // Reset badge
+        this.updateBadge(0);
+      } else {
+        this.historyPanel.classList.remove('open');
+        this.container.classList.remove('history-open');
+      }
+    }
+    
+    updateBadge(count) {
+      const badge = this.historyTab.querySelector('.notification-badge');
+      badge.textContent = count;
+      
+      if (count > 0) {
+        badge.classList.add('show');
+      } else {
+        badge.classList.remove('show');
+      }
+    }
+    
+    addToHistory(data) {
+      // Add to history data
+      const historyItem = {
+        id: `notification-${Date.now()}`,
+        timestamp: new Date(),
+        data: data
+      };
+      
+      this.historyData.unshift(historyItem);
+      this.renderHistory();
+      
+      // Update badge if history panel is not open
+      if (!this.isHistoryOpen) {
+        const currentCount = parseInt(this.historyTab.querySelector('.notification-badge').textContent);
+        this.updateBadge(currentCount + 1);
+      }
+    }
+    
+    renderHistory() {
+      const historyContent = this.historyPanel.querySelector('.history-content');
+      
+      if (this.historyData.length === 0) {
+        historyContent.innerHTML = `<div class="empty-history">No notifications yet</div>`;
+        return;
+      }
+      
+      historyContent.innerHTML = this.historyData.map(item => {
+        const person = item.data.people[0];
+        const phones = person.phone_numbers || [];
+        const firstName = person.first_name || '';
+        const lastName = person.last_name || '';
+        const company = person.company || '';
+        const fullName = `${firstName} ${lastName}`.trim();
+        const phoneText = phones.length ? phones.map(p => p.raw_number).join(', ') : 'None';
+        const formattedTime = item.timestamp.toLocaleTimeString();
+        const formattedDate = item.timestamp.toLocaleDateString();
+        const isFailure = phones.length === 0 || person.status === "failure";
+        
+        let displayName = fullName;
+        if (company) {
+          displayName += displayName ? ` - ${company}` : company;
+        }
+        
+        if (!displayName) {
+          displayName = 'Unknown Contact';
+        }
+        
+        return `
+          <div class="history-item${isFailure ? ' history-item-failure' : ''}" data-id="${item.id}">
+            <div class="history-item-header">
+              <span>${isFailure ? this.icons.x : this.icons.phone} ${displayName}</span>
+              <span class="history-timestamp">${formattedTime} ${formattedDate}</span>
+            </div>
+            <div class="history-phones">
+              ${isFailure ? '<span style="color:#6c757d;font-style:italic;">No numbers found</span>' : phoneText}
+            </div>
+          </div>
+        `;
+      }).join('');
+      
+      // Add click handlers to history items
+      const historyItems = historyContent.querySelectorAll('.history-item');
+      historyItems.forEach(item => {
+        item.addEventListener('click', () => {
+          const id = item.getAttribute('data-id');
+          const historyItem = this.historyData.find(h => h.id === id);
+          if (historyItem) {
+            this.showNotification(historyItem.data, false);
+          }
+        });
+      });
+    }
+  
+    createNotification(data, addToHistory = true, isFailure = false) {
+      const person = data.people[0];
+      const phones = person.phone_numbers || [];
+      const firstName = person.first_name || '';
+      const lastName = person.last_name || '';
+      const company = person.company || '';
+      const fullName = `${firstName} ${lastName}`.trim();
+      
+      // Create notification element
+      const notification = document.createElement('div');
+      notification.className = isFailure ? 'notification failure' : 'notification';
+      
+      // Create header
+      const header = document.createElement('div');
+      header.className = 'notification-header';
+      
+      if (isFailure) {
+        header.innerHTML = `
+          <div class="notification-title">
+            <span class="notification-icon">${this.icons.x}</span>
+            <span>No number found</span>
+            <span class="expand-icon">${this.icons.chevronDown}</span>
+          </div>
+        `;
+      } else {
+        header.innerHTML = `
+          <div class="notification-title">
+            <span class="notification-icon">${this.icons.phone}</span>
+            <span>New contact found</span>
+            <span class="expand-icon">${this.icons.chevronDown}</span>
+          </div>
+        `;
+      }
+      
+      // Close button
+      const closeBtn = document.createElement('button');
+      closeBtn.className = 'close-btn';
+      closeBtn.innerHTML = this.icons.close;
+      closeBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.removeNotification(notification);
+      });
+      header.appendChild(closeBtn);
+      
+      // Create content
+      const content = document.createElement('div');
+      content.className = 'notification-content';
+      
+      // Add person info to content
+      if (fullName) {
+        const nameElement = document.createElement('div');
+        nameElement.className = 'notification-name';
+        nameElement.innerHTML = `<strong>${fullName}</strong>`;
+        content.appendChild(nameElement);
+      }
+      
+      if (company) {
+        const companyElement = document.createElement('div');
+        companyElement.className = 'notification-company';
+        companyElement.textContent = company;
+        content.appendChild(companyElement);
+      }
+      
+      if (isFailure) {
+        // Add failure message
+        const failureMsg = document.createElement('div');
+        failureMsg.className = 'notification-failure-msg';
+        failureMsg.style.marginTop = '8px';
+        failureMsg.style.fontSize = '13px';
+        failureMsg.style.opacity = '0.9';
+        failureMsg.innerHTML = 'No phone numbers were found for this contact.';
+        content.appendChild(failureMsg);
+      } else {
+        // Add separator
+        if ((fullName || company) && phones.length > 0) {
+          const separator = document.createElement('div');
+          separator.className = 'notification-separator';
+          separator.style.margin = '8px 0';
+          separator.style.borderBottom = '1px solid rgba(255,255,255,0.2)';
+          content.appendChild(separator);
+        }
+        
+        // Add phone numbers to content
+        if (phones.length > 0) {
+          const phoneHeader = document.createElement('div');
+          phoneHeader.className = 'notification-phone-header';
+          phoneHeader.innerHTML = `<small>${phones.length > 1 ? 'PHONE NUMBERS' : 'PHONE NUMBER'}</small>`;
+          phoneHeader.style.opacity = '0.7';
+          phoneHeader.style.fontSize = '11px';
+          phoneHeader.style.fontWeight = '500';
+          phoneHeader.style.marginTop = '4px';
+          content.appendChild(phoneHeader);
+          
+          phones.forEach(phone => {
+            const phoneElement = document.createElement('div');
+            phoneElement.className = 'notification-phone';
+            phoneElement.textContent = phone.raw_number;
+            content.appendChild(phoneElement);
+          });
+        }
+      }
+      
+      // Toggle expand on header click
+      header.addEventListener('click', () => {
+        content.classList.toggle('expanded');
+        header.classList.toggle('expanded');
+      });
+      
+      // Assemble notification
+      notification.appendChild(header);
+      notification.appendChild(content);
+      
+      // Add to container and animate in
+      this.container.appendChild(notification);
+      
+      // Trigger reflow for animation
+      notification.offsetHeight;
+      notification.classList.add('show');
+      
+      // Add to history if needed
+      if (addToHistory) {
+        this.addToHistory(data);
+      }
+      
+      return notification;
+    }
+  
+    removeNotification(notification) {
+      notification.classList.remove('show');
+      setTimeout(() => {
+        if (notification.parentNode === this.container) {
+          this.container.removeChild(notification);
+        }
+      }, 300);
+    }
+  
+    showNotification(data, addToHistory = true, isFailure = false) {
+      return this.createNotification(data, addToHistory, isFailure);
+    }
+  }
+  
+  // Initialize notification system
+  const notificationSystem = new NotificationSystem();
+  
+  // Initialize with existing blob names to avoid showing existing data
+  async function initializeSeenFiles() {
+    try {
+      const res = await fetch(`${storageContainerUrl}?restype=container&comp=list`);
+      const text = await res.text();
+      const parser = new DOMParser();
+      const xml = parser.parseFromString(text, "application/xml");
+      const blobs = xml.getElementsByTagName("Name");
+  
+      for (let i = 0; i < blobs.length; i++) {
+        const blobName = blobs[i].textContent;
+        seenFiles.add(blobName);
+      }
+      console.log(`Initialized with ${seenFiles.size} existing blobs`);
+    } catch (err) {
+      console.error("Initialization error:", err);
+    }
+  }
+  
+  // Poll the container for new files with user_id = 1
+  async function pollWebhookContainer() {
+    try {
+      const res = await fetch(`${storageContainerUrl}?restype=container&comp=list`);
+      const text = await res.text();
+      const parser = new DOMParser();
+      const xml = parser.parseFromString(text, "application/xml");
+      const blobs = xml.getElementsByTagName("Name");
+  
+      for (let i = 0; i < blobs.length; i++) {
+        const blobName = blobs[i].textContent;
+        
+        // Filename format: person_id_status_datetime_user_id.json
+        const parts = blobName.split('_');
+       const userIdWithExtension = parts[parts.length - 1]; // e.g., "1.json"
+       const userId = userIdWithExtension.split('.')[0]; // extract "1" from "1.json"
+       // Use the logged-in user's ID instead of hardcoding "1"
+       if (userId !== filterValues.usrID.toString()) continue;  // Skip files that are not for the logged-in user
+
+  
+        if (seenFiles.has(blobName)) continue;
+        seenFiles.add(blobName);
+  
+        // Fetch and inspect the blob
+        const blobRes = await fetch(`${storageContainerUrl}/${blobName}`);
+        const blobData = await blobRes.json();
+  
+        const person = blobData?.people?.[0];
+        
+        if (blobData.status === "success") {
+          // Check if it's a success or failure based on phone numbers or explicit status
+          if (person) {
+            const phoneNumbers = person.phone_numbers || [];
+            const isSuccess = phoneNumbers.length > 0;
+            const isFailure = person.status === "failure" || phoneNumbers.length === 0;
+            
+            if (isSuccess) {
+              notificationSystem.showNotification(blobData, true, false);
+            } else if (isFailure) {
+              notificationSystem.showNotification(blobData, true, true);
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.error("Polling error:", err);
+    }
+  }
+  
+  // Initialize seen files first, then start polling
+  (async function() {
+    await initializeSeenFiles();
+    // Start regular polling after initialization
+    setInterval(pollWebhookContainer, pollingInterval);
+  })();
+  </script> 
 </body>
 </html>
