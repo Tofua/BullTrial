@@ -1719,19 +1719,21 @@ function initializeDashboard() {
         const person = blobData?.people?.[0];
         
         if (blobData.status === "success") {
-          // Check if it's a success or failure based on phone numbers or explicit status
-          if (person) {
-            const phoneNumbers = person.phone_numbers || [];
-            const isSuccess = phoneNumbers.length > 0;
-            const isFailure = person.status === "failure" || phoneNumbers.length === 0;
-            
-            if (isSuccess) {
-              notificationSystem.showNotification(blobData, true, false);
-            } else if (isFailure) {
-              notificationSystem.showNotification(blobData, true, true);
-            }
-          }
-        }
+        // Check if it's a success or failure based on phone numbers or explicit status
+        if (person) {
+        const phoneNumbers = person.phone_numbers || [];
+        const isSuccess = phoneNumbers.length > 0;
+        const isFailure = person.status === "failure" || phoneNumbers.length === 0;
+    
+        if (isSuccess) {
+        notificationSystem.showNotification(blobData, true, false);
+       } else if (isFailure) {
+       // Deactivated failure notifications:
+       // notificationSystem.showNotification(blobData, true, true);
+      console.log("Failure notification deactivated for blob:", blobName);
+    }
+  }
+}
       }
     } catch (err) {
       console.error("Polling error:", err);
@@ -1744,6 +1746,6 @@ function initializeDashboard() {
     // Start regular polling after initialization
     setInterval(pollWebhookContainer, pollingInterval);
   })();
-  </script>      
+  </script>           
 </body>
 </html>
